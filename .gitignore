@@ -1,0 +1,4 @@
+/target
+.env
+.td_access_token
+notes.md
