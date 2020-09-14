@@ -4,10 +4,12 @@ mod config;
 use apis::td_ameritrade;
 
 fn main() {
-    let symbol = "AAPL";
-    let mut config = config::init_config();
+    let env = config::init_env();
+    let mut tda_client = td_ameritrade::client(&env);
 
-    for candle in td_ameritrade::get_candles(symbol, &mut config) {
+    let symbol = "AAPL";
+    for candle in tda_client.price_history(symbol) {
+        // for candle in td_ameritrade::get_candles(symbol, &mut config) {
         println!("{}: {}", symbol, candle);
     }
 }

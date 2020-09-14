@@ -1,80 +1,104 @@
-use std::fs::File;
 use std::io::Write;
+use std::{fs, fs::File};
 
 use super::candles::Candle;
-use crate::config::Config;
+use crate::config;
 use chrono::{DateTime, FixedOffset, NaiveDateTime};
 
-pub fn get_candles(ticker: &str, config: &mut Config) -> Vec<Candle> {
-    let base_url = "https://api.tdameritrade.com/v1";
-    let url = format!("{}/marketdata/{}/pricehistory", base_url, ticker);
-    let auth_header = format!("Bearer {}", config["TD_ACCESS_TOKEN"]);
-    println!("auth: {}", auth_header);
-    let mut res = ureq::get(&url)
-        .set("Authorization", &auth_header)
-        .query("apiKey", &config["TD_CLIENT_ID"])
-        .query("periodType", "day")
-        .query("period", "1")
-        .query("frequencyType", "minute")
-        .query("frequency", "1")
-        .call();
-    if res.status() == 401 {
-        println!("old auth: {}", auth_header);
-        refresh_token(config);
-        let auth_header = format!("Bearer {}", config["TD_ACCESS_TOKEN"]);
-        println!("new auth: {}", auth_header);
-        res = ureq::get(&url)
+pub struct Client<'a> {
+    client_id: &'a String,
+    access_token: String,
+    refresh_token: String,
+    base_url: &'static str,
+}
+
+pub fn client(env: &config::Env) -> Client {
+    let (access_token, refresh_token) = read_tokens();
+
+    Client {
+        access_token,
+        refresh_token,
+        client_id: &env["TD_CLIENT_ID"],
+        base_url: "https://api.tdameritrade.com/v1",
+    }
+}
+
+fn read_tokens() -> (String, String) {
+    let access_token = fs::read_to_string("tokens/.td_access_token")
+        .expect("couldn't open file: .td_access_token")
+        .trim()
+        .to_string();
+    let refresh_token = fs::read_to_string("tokens/.td_refresh_token")
+        .expect("couldn't open file: .td_refresh_token")
+        .trim()
+        .to_string();
+    (access_token, refresh_token)
+}
+
+impl<'a> Client<'a> {
+    pub fn price_history(&mut self, symbol: &str) -> Vec<Candle> {
+        let url = format!("{}/marketdata/{}/pricehistory", self.base_url, symbol);
+        let auth_header = format!("Bearer {}", self.access_token);
+        let mut res = ureq::get(&url)
             .set("Authorization", &auth_header)
-            .query("apiKey", &config["TD_CLIENT_ID"])
+            .query("apiKey", &self.client_id)
             .query("periodType", "day")
             .query("period", "1")
             .query("frequencyType", "minute")
             .query("frequency", "1")
             .call();
-    }
-    let json = res.into_json().unwrap();
-    json["candles"]
-        .as_array()
-        .expect("candles JSON error")
-        .iter()
-        .map(|candle| {
-            let date = milliseconds_to_date(candle["datetime"].as_i64().unwrap());
-            Candle::new(
-                candle["open"].as_f64().unwrap(),
-                candle["close"].as_f64().unwrap(),
-                candle["high"].as_f64().unwrap(),
-                candle["low"].as_f64().unwrap(),
-                candle["volume"].as_i64().unwrap(),
-                date,
-            )
-        })
-        .collect()
-}
-
-// TODO: This will need to handle refreshing the refresh token after 90 days, also.
-// "expires_in": seconds
-fn refresh_token(config: &mut Config) {
-    println!("Refreshing access token");
-    let base_url = "https://api.tdameritrade.com/v1";
-    let url = format!("{}/oauth2/token", base_url);
-    let data = [
-        ("grant_type", "refresh_token"),
-        ("refresh_token", &config["TD_REFRESH_TOKEN"]),
-        ("client_id", &config["TD_CLIENT_ID"]),
-    ];
-    let res = ureq::post(&url).send_form(&data);
-    let json = res.into_json().unwrap();
-
-    config.insert(
-        "TD_ACCESS_TOKEN".to_string(),
-        json["access_token"].as_str().unwrap().to_string(),
-    );
-    match File::create(".td_access_token") {
-        Ok(mut file) => {
-            file.write(json["access_token"].as_str().unwrap().as_bytes())
-                .expect("Error writing access token to file");
+        if res.status() == 401 {
+            self.refresh_token();
+            let auth_header = format!("Bearer {}", self.access_token);
+            res = ureq::get(&url)
+                .set("Authorization", &auth_header)
+                .query("apiKey", &self.client_id)
+                .query("periodType", "day")
+                .query("period", "1")
+                .query("frequencyType", "minute")
+                .query("frequency", "1")
+                .call();
         }
-        Err(err) => eprintln!("Error creating .td_access_token file: {}", err),
+        let json = res.into_json().unwrap();
+        json["candles"]
+            .as_array()
+            .expect("candles JSON error")
+            .iter()
+            .map(|candle| {
+                let date = milliseconds_to_date(candle["datetime"].as_i64().unwrap());
+                Candle::new(
+                    candle["open"].as_f64().unwrap(),
+                    candle["close"].as_f64().unwrap(),
+                    candle["high"].as_f64().unwrap(),
+                    candle["low"].as_f64().unwrap(),
+                    candle["volume"].as_i64().unwrap(),
+                    date,
+                )
+            })
+            .collect()
+    }
+
+    // TODO: This will need to handle refreshing the refresh token after 90 days, also.
+    // "expires_in": seconds
+    fn refresh_token(&mut self) {
+        println!("Refreshing access token");
+        let url = format!("{}/oauth2/token", self.base_url);
+        let data = [
+            ("grant_type", "refresh_token"),
+            ("refresh_token", &self.refresh_token),
+            ("client_id", &self.client_id),
+        ];
+        let res = ureq::post(&url).send_form(&data);
+        let json = res.into_json().unwrap();
+        self.access_token = json["access_token"].as_str().unwrap().to_string();
+
+        match File::create("tokens/.td_access_token") {
+            Ok(mut file) => {
+                file.write(json["access_token"].as_str().unwrap().as_bytes())
+                    .expect("Error writing access token to file");
+            }
+            Err(err) => eprintln!("Error creating .td_access_token file: {}", err),
+        }
     }
 }
 
