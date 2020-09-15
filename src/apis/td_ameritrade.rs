@@ -1,10 +1,8 @@
-use std::io::Write;
-use std::time::{SystemTime, UNIX_EPOCH};
-use std::{fs, fs::File};
-
 use super::candles::Candle;
+use crate::clock;
 use crate::config;
-use chrono::{DateTime, FixedOffset, NaiveDateTime};
+use std::io::Write;
+use std::{fs, fs::File};
 
 pub fn client(env: &config::Env) -> Client {
     Client {
@@ -25,11 +23,11 @@ pub struct Client<'a> {
 impl<'a> Client<'a> {
     pub fn price_history(&mut self, symbol: &str) -> Vec<Candle> {
         let url = format!("{}/marketdata/{}/pricehistory", self.base_url, symbol);
-        let end_date = current_milliseconds();
+        let end_date = clock::current_milliseconds();
         let params = vec![
             ("periodType", "day"),
             ("apiKey", self.client_id),
-            ("period", "2"),
+            ("period", "1"),
             ("frequencyType", "minute"),
             ("frequency", "1"),
             ("endDate", &end_date),
@@ -86,7 +84,7 @@ fn read_token_file(token_type: &str) -> String {
 }
 
 fn format_candle(candle: &serde_json::value::Value) -> Candle {
-    let date = milliseconds_to_date(candle["datetime"].as_i64().unwrap());
+    let date = clock::milliseconds_to_date(candle["datetime"].as_i64().unwrap());
     Candle::new(
         candle["open"].as_f64().unwrap(),
         candle["close"].as_f64().unwrap(),
@@ -95,22 +93,4 @@ fn format_candle(candle: &serde_json::value::Value) -> Candle {
         candle["volume"].as_i64().unwrap(),
         date,
     )
-}
-
-fn milliseconds_to_date(ms: i64) -> String {
-    const HOURS: i32 = 3600;
-    let seconds = ms / 1000;
-    let naive_date = NaiveDateTime::from_timestamp(seconds, 0);
-    let est = FixedOffset::west(4 * HOURS);
-    DateTime::<FixedOffset>::from_utc(naive_date, est)
-        .format("%D %l:%M:%S %p %z")
-        .to_string()
-}
-
-fn current_milliseconds() -> String {
-    SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .expect("Error getting milliseconds from epoch")
-        .as_millis()
-        .to_string()
 }

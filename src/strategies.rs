@@ -1,5 +1,5 @@
-use super::studies;
-use crate::apis::candles::Candle;
+use super::{clock, studies};
+use crate::apis::candles::{Candle, Time};
 
 // Buy when price closes above SMA9.
 // Sell when price closes below SMA9.
@@ -20,25 +20,33 @@ pub fn confirmation_above_sma(candles: &Vec<Candle>) {
         let start = end - (bar9 - 1);
         sma9 = studies::sma(&closed_prices(&candles[start..end]), bar9);
         if candle.close > sma9 && setup {
-            // if candle.time between 9:30 - 4 EST
+            if outside_market_hours(candle.time()) {
+                continue;
+            }
+
+            // buy
             shares = (capital / candle.close) as i32;
             cost = shares as f64 * candle.close;
             capital -= cost;
-            println!("bought {} at ${} - {}", shares, candle.close, candle.time); // buy at market
             position_open = true;
             setup = false;
+            println!("bought {} at ${} - {}", shares, candle.close, candle.time());
         } else if candle.close < sma9 && position_open {
-            // if candle.time between 9:30 - 4 EST
+            if outside_market_hours(candle.time()) {
+                continue;
+            }
+
+            // sell
             let ret = shares as f64 * candle.close;
             capital += ret;
+            position_open = false;
             println!(
                 "sold {} at ${} (${}) - {}",
                 shares,
                 candle.close,
                 ret - cost,
-                candle.time
-            ); // sell at market
-            position_open = false;
+                candle.time()
+            );
         } else if candle.close < sma9 && !position_open {
             setup = true;
         }
@@ -48,4 +56,9 @@ pub fn confirmation_above_sma(candles: &Vec<Candle>) {
 
 fn closed_prices(candles: &[Candle]) -> Vec<f64> {
     candles.iter().map(|candle| candle.close).collect()
+}
+
+fn outside_market_hours(time: Time) -> bool {
+    let (open, close) = clock::market_hours();
+    time < open || time > close
 }

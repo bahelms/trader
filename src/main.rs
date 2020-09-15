@@ -1,11 +1,11 @@
 mod apis;
+mod clock;
 mod config;
 mod strategies;
 mod studies;
 
-use std::env;
-
 use apis::td_ameritrade;
+use std::env;
 
 fn main() {
     let args: Vec<String> = env::args().collect();
