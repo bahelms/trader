@@ -1,5 +1,6 @@
 mod apis;
 mod config;
+mod studies;
 
 use std::env;
 
@@ -16,7 +17,12 @@ fn main() {
     let env = config::init_env();
     let mut tda_client = td_ameritrade::client(&env);
 
-    for candle in tda_client.price_history(&symbol) {
+    let candles = tda_client.price_history(&symbol);
+    let closed_prices = candles.iter().map(|candle| candle.close).collect();
+    let sma9 = studies::sma(&closed_prices, 9);
+
+    for candle in candles {
         println!("{}: {}", symbol, candle);
     }
+    println!("SMA9 {}", sma9);
 }

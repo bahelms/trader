@@ -1,12 +1,12 @@
 use std::fmt;
 
 pub struct Candle {
-    open: f64,
-    close: f64,
-    high: f64,
-    low: f64,
-    volume: i64,
-    time: String,
+    pub open: f64,
+    pub close: f64,
+    pub high: f64,
+    pub low: f64,
+    pub volume: i64,
+    pub time: String,
 }
 
 impl Candle {
