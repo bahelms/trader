@@ -3,7 +3,7 @@ use crate::apis::candles::Candle;
 
 // Buy when price closes above SMA9.
 // Sell when price closes below SMA9.
-pub fn confirmation_above_sma(candles: &Vec<Candle>, mut trades: Trades) -> Trades {
+pub fn confirmation_above_sma<T: Trades>(candles: &Vec<Candle>, mut trades: T) -> T {
     let bar9 = 9;
     let mut setup = false;
     let mut sma9 = studies::sma(&closed_prices(&candles[..bar9]), bar9);

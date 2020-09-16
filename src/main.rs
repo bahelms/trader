@@ -7,7 +7,7 @@ mod trading;
 
 use apis::td_ameritrade;
 use std::env;
-use trading::Trades;
+use trading::{Backtest, Trades};
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -19,17 +19,19 @@ fn main() {
     let symbol = args[1].to_uppercase();
     let env = config::init_env();
     let mut tda_client = td_ameritrade::client(&env);
+    let mut trades = Backtest::new(1000.00);
 
-    let mut trades = Trades::new(1000.00);
     let candles = tda_client.price_history(&symbol);
-    // for candle in &candles {
-    //     println!("{}: {}", symbol, candle);
-    // }
+    if candles.len() < 9 {
+        eprintln!("Not enough candles for minimum trading: {}", candles.len());
+        return;
+    }
+
     trades = strategies::confirmation_above_sma(&candles, trades);
     log_results(trades);
 }
 
-fn log_results(trades: Trades) {
+fn log_results(trades: Backtest) {
     for position in &trades.positions {
         if !position.open {
             let close = &position.closes[0];
@@ -40,6 +42,7 @@ fn log_results(trades: Trades) {
             );
         }
     }
+
     if trades.is_current_position_open() {
         let position = trades.current_position().unwrap();
         println!(
@@ -47,5 +50,6 @@ fn log_results(trades: Trades) {
             position.shares, position.bid
         );
     }
+
     println!("capital: ${}", trades.capital);
 }

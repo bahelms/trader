@@ -26,7 +26,7 @@ impl<'a> Client<'a> {
         let params = vec![
             ("periodType", "day"),
             ("apiKey", self.client_id),
-            ("period", "1"),
+            ("period", "2"),
             ("frequencyType", "minute"),
             ("frequency", "1"),
             ("endDate", &end_date),
