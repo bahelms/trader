@@ -1,6 +1,5 @@
 use super::candles::Candle;
-use crate::clock;
-use crate::config;
+use crate::{clock, config};
 use std::io::Write;
 use std::{fs, fs::File};
 

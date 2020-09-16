@@ -1,7 +1,5 @@
-use chrono::{DateTime, FixedOffset, NaiveTime};
+use crate::clock;
 use std::fmt;
-
-pub type Time = NaiveTime;
 
 pub struct Candle {
     pub open: f64,
@@ -9,7 +7,7 @@ pub struct Candle {
     pub high: f64,
     pub low: f64,
     pub volume: i64,
-    datetime: DateTime<FixedOffset>,
+    datetime: clock::DateEST,
 }
 
 impl Candle {
@@ -19,7 +17,7 @@ impl Candle {
         high: f64,
         low: f64,
         volume: i64,
-        datetime: DateTime<FixedOffset>,
+        datetime: clock::DateEST,
     ) -> Self {
         Self {
             open,
@@ -31,7 +29,7 @@ impl Candle {
         }
     }
 
-    pub fn time(&self) -> NaiveTime {
+    pub fn time(&self) -> clock::Time {
         self.datetime.time()
     }
 }
