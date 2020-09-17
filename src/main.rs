@@ -35,7 +35,7 @@ fn log_results(trades: Backtest) {
     for position in &trades.positions {
         if !position.open {
             let close = &position.closes[0];
-            let ret = close.ask * close.shares as f64 - position.bid * position.shares as f64;
+            let ret = close.ask * close.shares - position.bid * position.shares;
             println!(
                 "trade: ({}) {} shares at ${} - sold at ${} -- return ${:.4}",
                 position.time, position.shares, position.bid, close.ask, ret

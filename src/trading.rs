@@ -1,9 +1,9 @@
 use super::clock;
 
 pub trait Trades {
-    fn open_position(&mut self, bid: f64, shares: i32);
+    fn open_position(&mut self, bid: f64, shares: f64);
     fn close_current_position(&mut self, ask: f64);
-    fn max_purchaseable_shares(&self, price: f64) -> i32;
+    fn max_purchaseable_shares(&self, price: f64) -> f64;
     fn current_position(&self) -> Option<&Position>;
 
     fn is_current_position_open(&self) -> bool {
@@ -29,14 +29,14 @@ pub struct Live {
 
 pub struct Position {
     pub open: bool,
-    pub shares: i32,
+    pub shares: f64,
     pub bid: f64,
     pub closes: Vec<Close>,
     pub time: clock::DateEST,
 }
 
 pub struct Close {
-    pub shares: i32,
+    pub shares: f64,
     pub ask: f64,
     pub time: clock::DateEST,
 }
@@ -51,23 +51,23 @@ impl Backtest {
 }
 
 impl Trades for Backtest {
-    fn open_position(&mut self, bid: f64, shares: i32) {
-        if shares <= 0 {
+    fn open_position(&mut self, bid: f64, shares: f64) {
+        if shares <= 0.0 {
             return;
         }
-        self.capital -= bid * shares as f64;
+        self.capital -= bid * shares;
         self.positions.push(Position::open(shares, bid));
     }
 
     fn close_current_position(&mut self, ask: f64) {
         let mut position = self.positions.pop().unwrap();
         position.close(ask);
-        self.capital += ask * position.shares as f64;
+        self.capital += ask * position.shares;
         self.positions.push(position);
     }
 
-    fn max_purchaseable_shares(&self, price: f64) -> i32 {
-        (self.capital / price) as i32
+    fn max_purchaseable_shares(&self, price: f64) -> f64 {
+        self.capital / price
     }
 
     fn current_position(&self) -> Option<&Position> {
@@ -92,11 +92,11 @@ impl Trades for Live {
         self.positions.last()
     }
 
-    fn open_position(&mut self, bid: f64, shares: i32) {
-        if shares <= 0 {
+    fn open_position(&mut self, bid: f64, shares: f64) {
+        if shares <= 0.0 {
             return;
         }
-        let cost = bid * shares as f64;
+        let cost = bid * shares;
         if cost > self.capital {
             println!(
                 "Not enough capital for position - capital: {}, cost: {}",
@@ -114,17 +114,17 @@ impl Trades for Live {
         // send sell order
         let mut position = self.positions.pop().unwrap();
         position.close(ask);
-        self.unsettled_cash += ask * position.shares as f64;
+        self.unsettled_cash += ask * position.shares;
         self.positions.push(position);
     }
 
-    fn max_purchaseable_shares(&self, price: f64) -> i32 {
-        (self.capital / price) as i32
+    fn max_purchaseable_shares(&self, price: f64) -> f64 {
+        self.capital / price
     }
 }
 
 impl Position {
-    pub fn open(shares: i32, bid: f64) -> Self {
+    pub fn open(shares: f64, bid: f64) -> Self {
         Self {
             open: true,
             shares,
@@ -142,16 +142,25 @@ impl Position {
             time: clock::current_datetime(),
         }];
     }
+
+    pub fn total_return(&self) -> f64 {
+        let gross: f64 = self
+            .closes
+            .iter()
+            .map(|close| close.ask * close.shares)
+            .sum();
+        gross - self.bid * self.shares
+    }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{Backtest, Live, Trades};
+    use super::{Backtest, Live, Position, Trades};
 
     #[test]
     fn close_current_position_puts_return_into_unsettled_cash() {
         let mut trades = Live::new(100.00);
-        trades.open_position(10.00, 5);
+        trades.open_position(10.00, 5.0);
         trades.close_current_position(11.00);
         assert_eq!(trades.unsettled_cash, 55.00);
         assert_eq!(trades.capital, 50.00);
@@ -160,18 +169,26 @@ mod tests {
     #[test]
     fn cannot_open_position_without_enough_capital() {
         let mut trades = Live::new(100.00);
-        trades.open_position(10.00, 11);
+        trades.open_position(10.00, 11.0);
         assert_eq!(trades.positions.len(), 0);
     }
 
     #[test]
     fn cannot_open_position_without_shares() {
         let mut trades = Live::new(100.00);
-        trades.open_position(10.00, 0);
+        trades.open_position(10.00, 0.0);
         assert_eq!(trades.positions.len(), 0);
 
         let mut trades = Backtest::new(100.00);
-        trades.open_position(10.00, 0);
+        trades.open_position(10.00, 0.0);
         assert_eq!(trades.positions.len(), 0);
+    }
+
+    #[test]
+    fn position_provides_return_value() {
+        let mut position = Position::open(10.0, 5.00);
+        position.close(6.00);
+        let total_return = position.total_return();
+        assert_eq!(total_return, 10.00);
     }
 }
