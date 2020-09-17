@@ -7,7 +7,7 @@ mod trading;
 
 use apis::td_ameritrade;
 use std::env;
-use trading::{Backtest, Trades};
+use trading::Backtest;
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -27,29 +27,46 @@ fn main() {
         return;
     }
 
-    trades = strategies::confirmation_above_sma(&candles, trades);
+    trades = strategies::sma9_crossover(&candles, trades);
     log_results(trades);
 }
 
 fn log_results(trades: Backtest) {
+    let mut winning_trades = Vec::new();
+    let mut losing_trades = Vec::new();
     for position in &trades.positions {
-        if !position.open {
-            let close = &position.closes[0];
-            let ret = close.ask * close.shares - position.bid * position.shares;
-            println!(
-                "trade: ({}) {} shares at ${} - sold at ${} -- return ${:.4}",
-                position.time, position.shares, position.bid, close.ask, ret
-            );
+        if position.total_return() >= 0.0 {
+            winning_trades.push(position);
+        } else {
+            losing_trades.push(position);
         }
     }
+    let mut winning_returns: Vec<f64> = winning_trades.iter().map(|p| p.total_return()).collect();
+    let mut losing_returns: Vec<f64> = losing_trades.iter().map(|p| p.total_return()).collect();
+    let total_wins: f64 = winning_returns.iter().sum();
+    let total_losses: f64 = losing_returns.iter().sum();
+    winning_returns.sort_by(|a, b| b.partial_cmp(a).unwrap());
+    losing_returns.sort_by(|a, b| a.partial_cmp(b).unwrap());
 
-    if trades.is_current_position_open() {
-        let position = trades.current_position().unwrap();
-        println!(
-            "open position: {} shares, {} bid",
-            position.shares, position.bid
-        );
-    }
+    println!(
+        "Trades won: {} - total returns: ${}",
+        winning_trades.len(),
+        total_wins
+    );
+    println!(
+        "Trades lost: {} - total returns: ${}",
+        losing_trades.len(),
+        total_losses
+    );
+    println!(
+        "Win %: {:.2}",
+        winning_trades.len() as f64 / trades.positions.len() as f64 * 100.0
+    );
+    println!(
+        "Highest return: ${} - Lowest return: ${}",
+        winning_returns[0], losing_returns[0],
+    );
 
-    println!("capital: ${}", trades.capital);
+    println!("Net return: ${}", total_wins + total_losses);
+    println!("Ending Capital: ${}", trades.capital);
 }

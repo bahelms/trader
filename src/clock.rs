@@ -10,6 +10,11 @@ pub fn market_hours() -> (NaiveTime, NaiveTime) {
     (NaiveTime::from_hms(9, 30, 0), NaiveTime::from_hms(16, 0, 0))
 }
 
+pub fn outside_market_hours(time: Time) -> bool {
+    let (open, close) = market_hours();
+    time < open || time >= close
+}
+
 pub fn current_datetime() -> DateEST {
     let ms = SystemTime::now()
         .duration_since(UNIX_EPOCH)
