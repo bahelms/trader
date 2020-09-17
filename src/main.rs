@@ -21,11 +21,13 @@ fn main() {
     let mut tda_client = td_ameritrade::client(&env);
     let mut trades = Backtest::new(1000.00);
 
-    let candles = tda_client.price_history(&symbol);
+    let candles = tda_client.price_history(&symbol, "day", "10", "minute", "15");
     if candles.len() < 9 {
         eprintln!("Not enough candles for minimum trading: {}", candles.len());
         return;
     }
+    println!("First Candle {}", candles[0]);
+    println!("Last Candle {}\n", candles.last().unwrap());
 
     trades = strategies::sma9_crossover(&candles, trades);
     trades.log_results();

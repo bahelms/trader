@@ -20,16 +20,21 @@ pub struct Client<'a> {
 }
 
 impl<'a> Client<'a> {
-    pub fn price_history(&mut self, symbol: &str) -> Vec<Candle> {
+    pub fn price_history(
+        &mut self,
+        symbol: &str,
+        period_type: &str,
+        period: &str,
+        fq_type: &str,
+        fq: &str,
+    ) -> Vec<Candle> {
         let url = format!("{}/marketdata/{}/pricehistory", self.base_url, symbol);
-        let end_date = clock::current_milliseconds();
         let params = vec![
-            ("periodType", "day"),
+            ("periodType", period_type),
+            ("period", period),
+            ("frequencyType", fq_type),
+            ("frequency", fq),
             ("apiKey", self.client_id),
-            ("period", "2"),
-            ("frequencyType", "minute"),
-            ("frequency", "1"),
-            ("endDate", &end_date),
         ];
 
         let mut res = super::get(&url, self.bearer_token(), &params);
