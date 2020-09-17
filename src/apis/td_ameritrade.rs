@@ -1,7 +1,6 @@
 use super::candles::Candle;
 use crate::{clock, config};
-use std::io::Write;
-use std::{fs, fs::File};
+use std::{fs, fs::File, io::Write};
 
 pub fn client(env: &config::Env) -> Client {
     Client {
