@@ -7,7 +7,7 @@ pub struct Candle {
     pub high: f64,
     pub low: f64,
     pub volume: i64,
-    datetime: clock::DateEST,
+    pub datetime: clock::DateEST,
 }
 
 impl Candle {

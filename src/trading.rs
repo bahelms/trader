@@ -1,7 +1,7 @@
 use super::clock;
 
 pub trait Trades {
-    fn open_position(&mut self, bid: f64, shares: f64);
+    fn open_position(&mut self, bid: f64, shares: f64, time: clock::DateEST);
     fn close_current_position(&mut self, ask: f64);
     fn max_purchaseable_shares(&self, price: f64) -> f64;
     fn current_position(&self) -> Option<&Position>;
@@ -18,6 +18,7 @@ pub trait Trades {
 pub struct Backtest {
     pub positions: Vec<Position>,
     pub capital: f64,
+    pub chart_period: &'static str,
 }
 
 pub struct Live {
@@ -42,9 +43,10 @@ pub struct Close {
 }
 
 impl Backtest {
-    pub fn new(capital: f64) -> Self {
+    pub fn new(capital: f64, chart_period: &'static str) -> Self {
         Self {
             capital,
+            chart_period,
             positions: Vec::new(),
         }
     }
@@ -59,14 +61,12 @@ impl Backtest {
                 losing_trades.push(position);
             }
         }
-        let mut winning_returns: Vec<f64> =
-            winning_trades.iter().map(|p| p.total_return()).collect();
-        let mut losing_returns: Vec<f64> = losing_trades.iter().map(|p| p.total_return()).collect();
-        let total_wins: f64 = winning_returns.iter().sum();
-        let total_losses: f64 = losing_returns.iter().sum();
-        winning_returns.sort_by(|a, b| b.partial_cmp(a).unwrap());
-        losing_returns.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        winning_trades.sort_by(|a, b| b.total_return().partial_cmp(&a.total_return()).unwrap());
+        losing_trades.sort_by(|a, b| a.total_return().partial_cmp(&b.total_return()).unwrap());
+        let total_wins: f64 = winning_trades.iter().map(|p| p.total_return()).sum();
+        let total_losses: f64 = losing_trades.iter().map(|p| p.total_return()).sum();
 
+        println!("{}\n", self.chart_period);
         println!(
             "Trades won: {} - total returns: ${}",
             winning_trades.len(),
@@ -81,23 +81,36 @@ impl Backtest {
             "Win %: {:.2}",
             winning_trades.len() as f64 / self.positions.len() as f64 * 100.0
         );
-        println!(
-            "Highest return: ${} - Lowest return: ${}",
-            winning_returns[0], losing_returns[0],
-        );
 
         println!("Net return: ${}", total_wins + total_losses);
         println!("Ending Capital: ${}", self.capital);
+
+        let mut stop = 5;
+        if winning_trades.len() < stop {
+            stop = winning_trades.len();
+        }
+        println!("\nTop {} Winners", stop);
+        for pos in &winning_trades[..stop] {
+            println!("\t* time: {}, return: ${}", pos.time, pos.total_return());
+        }
+        stop = 5;
+        if losing_trades.len() < stop {
+            stop = losing_trades.len();
+        }
+        println!("\nTop {} Losers", stop);
+        for pos in &losing_trades[..stop] {
+            println!("\t* time: {}, return: ${}", pos.time, pos.total_return());
+        }
     }
 }
 
 impl Trades for Backtest {
-    fn open_position(&mut self, bid: f64, shares: f64) {
+    fn open_position(&mut self, bid: f64, shares: f64, time: clock::DateEST) {
         if shares <= 0.0 {
             return;
         }
         self.capital -= bid * shares;
-        self.positions.push(Position::open(shares, bid));
+        self.positions.push(Position::open(shares, bid, time));
     }
 
     fn close_current_position(&mut self, ask: f64) {
@@ -133,7 +146,7 @@ impl Trades for Live {
         self.positions.last()
     }
 
-    fn open_position(&mut self, bid: f64, shares: f64) {
+    fn open_position(&mut self, bid: f64, shares: f64, _time: clock::DateEST) {
         if shares <= 0.0 {
             return;
         }
@@ -148,7 +161,8 @@ impl Trades for Live {
 
         // send buy order
         self.capital -= cost;
-        self.positions.push(Position::open(shares, bid));
+        let pos = Position::open(shares, bid, clock::current_datetime());
+        self.positions.push(pos);
     }
 
     fn close_current_position(&mut self, ask: f64) {
@@ -165,13 +179,13 @@ impl Trades for Live {
 }
 
 impl Position {
-    pub fn open(shares: f64, bid: f64) -> Self {
+    pub fn open(shares: f64, bid: f64, time: clock::DateEST) -> Self {
         Self {
-            open: true,
             shares,
             bid,
+            time,
+            open: true,
             closes: Vec::new(),
-            time: clock::current_datetime(),
         }
     }
 

@@ -19,9 +19,9 @@ fn main() {
     let symbol = args[1].to_uppercase();
     let env = config::init_env();
     let mut tda_client = td_ameritrade::client(&env);
-    let mut trades = Backtest::new(1000.00);
+    let mut trades = Backtest::new(1000.00, "10 Day - 1 minute chart");
 
-    let candles = tda_client.price_history(&symbol, "day", "10", "minute", "15");
+    let candles = tda_client.price_history(&symbol, "day", "10", "minute", "1");
     if candles.len() < 9 {
         eprintln!("Not enough candles for minimum trading: {}", candles.len());
         return;

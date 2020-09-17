@@ -25,7 +25,7 @@ pub fn sma9_crossover<T: Trades>(candles: &Vec<Candle>, mut trades: T) -> T {
             }
 
             let shares = trades.max_purchaseable_shares(candle.close);
-            trades.open_position(candle.close, shares);
+            trades.open_position(candle.close, shares, candle.datetime);
             setup = false;
         } else if candle.close < sma9 && trades.is_current_position_open() {
             if clock::outside_market_hours(candle.time()) {
