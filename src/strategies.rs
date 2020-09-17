@@ -3,19 +3,18 @@ use crate::apis::candles::Candle;
 
 // Buy when price closes above SMA9.
 // Sell when price closes below SMA9.
-pub fn sma9_crossover<T: Trades>(candles: &Vec<Candle>, mut trades: T) -> T {
-    let bar9 = 9;
+pub fn sma_crossover<T: Trades>(candles: &Vec<Candle>, mut trades: T, bars: usize) -> T {
     let mut setup = false;
-    let mut sma9 = studies::sma(&closed_prices(&candles[..bar9]), bar9);
+    let mut sma9 = studies::sma(&closed_prices(&candles[..bars]), bars);
 
-    if candles[bar9 - 1].close < sma9 {
+    if candles[bars - 1].close < sma9 {
         setup = true;
     }
 
-    for (i, candle) in candles[bar9..].iter().enumerate() {
-        let end = i + bar9;
-        let start = end - (bar9 - 1);
-        sma9 = studies::sma(&closed_prices(&candles[start..end]), bar9);
+    for (i, candle) in candles[bars..].iter().enumerate() {
+        let end = i + bars;
+        let start = end - (bars - 1);
+        sma9 = studies::sma(&closed_prices(&candles[start..end]), bars);
 
         if close_day_position(candles[i + 1].time(), &trades) {
             trades.close_current_position(candle.close);

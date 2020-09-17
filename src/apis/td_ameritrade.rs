@@ -1,5 +1,5 @@
 use super::candles::Candle;
-use crate::{clock, config};
+use crate::{clock, config, trading::PricePeriod};
 use std::{fs, fs::File, io::Write};
 
 pub fn client(env: &config::Env) -> Client {
@@ -19,20 +19,13 @@ pub struct Client<'a> {
 }
 
 impl<'a> Client<'a> {
-    pub fn price_history(
-        &mut self,
-        symbol: &str,
-        period_type: &str,
-        period: &str,
-        fq_type: &str,
-        fq: &str,
-    ) -> Vec<Candle> {
+    pub fn price_history(&mut self, symbol: &str, price_period: &PricePeriod) -> Vec<Candle> {
         let url = format!("{}/marketdata/{}/pricehistory", self.base_url, symbol);
         let params = vec![
-            ("periodType", period_type),
-            ("period", period),
-            ("frequencyType", fq_type),
-            ("frequency", fq),
+            ("period", price_period.period),
+            ("periodType", price_period.period_type),
+            ("frequency", price_period.frequency),
+            ("frequencyType", price_period.frequency_type),
             ("apiKey", self.client_id),
         ];
 

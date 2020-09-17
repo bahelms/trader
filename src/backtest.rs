@@ -1,12 +1,13 @@
 use super::{
     apis::td_ameritrade,
     clock, strategies,
-    trading::{Position, Trades},
+    trading::{Position, PricePeriod, Trades},
 };
 
 pub fn backtest(symbol: String, mut client: td_ameritrade::Client) {
-    let mut trades = Backtest::new(1000.00, "10 Day - 1 minute chart");
-    let candles = client.price_history(&symbol, "day", "10", "minute", "1");
+    let price_period = PricePeriod::new("10", "day", "1", "minute");
+    let mut trades = Backtest::new(1000.00, format!("{} chart", price_period));
+    let candles = client.price_history(&symbol, &price_period);
 
     if candles.len() < 9 {
         eprintln!("Not enough candles for minimum trading: {}", candles.len());
@@ -15,18 +16,18 @@ pub fn backtest(symbol: String, mut client: td_ameritrade::Client) {
     // println!("First Candle {}", candles[0]);
     // println!("Last Candle {}\n", candles.last().unwrap());
 
-    trades = strategies::sma9_crossover(&candles, trades);
+    trades = strategies::sma_crossover(&candles, trades, 9);
     trades.log_results();
 }
 
 pub struct Backtest {
     pub positions: Vec<Position>,
     pub capital: f64,
-    pub chart_period: &'static str,
+    pub chart_period: String,
 }
 
 impl Backtest {
-    pub fn new(capital: f64, chart_period: &'static str) -> Self {
+    pub fn new(capital: f64, chart_period: String) -> Self {
         Self {
             capital,
             chart_period,

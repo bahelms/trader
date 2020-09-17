@@ -1,4 +1,5 @@
 use super::clock;
+use std::fmt;
 
 pub trait Trades {
     fn open_position(&mut self, bid: f64, shares: f64, time: clock::DateEST);
@@ -34,6 +35,13 @@ pub struct Close {
     pub shares: f64,
     pub ask: f64,
     pub time: clock::DateEST,
+}
+
+pub struct PricePeriod {
+    pub period: &'static str,
+    pub period_type: &'static str,
+    pub frequency: &'static str,
+    pub frequency_type: &'static str,
 }
 
 #[allow(dead_code)]
@@ -112,6 +120,32 @@ impl Position {
             .map(|close| close.ask * close.shares)
             .sum();
         gross - self.bid * self.shares
+    }
+}
+
+impl PricePeriod {
+    pub fn new(
+        period: &'static str,
+        period_type: &'static str,
+        frequency: &'static str,
+        frequency_type: &'static str,
+    ) -> Self {
+        Self {
+            period,
+            period_type,
+            frequency,
+            frequency_type,
+        }
+    }
+}
+
+impl fmt::Display for PricePeriod {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "{} {} - {} {}",
+            self.period, self.period_type, self.frequency, self.frequency_type,
+        )
     }
 }
 
