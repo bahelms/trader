@@ -19,5 +19,5 @@ fn main() {
 
     let symbol = args[1].to_uppercase();
     let env = config::init_env();
-    backtest(symbol, td_ameritrade::client(&env));
+    backtest(symbol, td_ameritrade::client(&env), 1000.0);
 }

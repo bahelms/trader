@@ -3,7 +3,7 @@ use std::fmt;
 
 pub trait Trades {
     fn open_position(&mut self, bid: f64, shares: f64, time: clock::DateEST);
-    fn close_current_position(&mut self, ask: f64);
+    fn close_current_position(&mut self, ask: f64, time: clock::DateEST);
     fn max_purchaseable_shares(&self, price: f64) -> f64;
     fn current_position(&self) -> Option<&Position>;
 
@@ -80,10 +80,10 @@ impl Trades for Live {
         self.positions.push(pos);
     }
 
-    fn close_current_position(&mut self, ask: f64) {
+    fn close_current_position(&mut self, ask: f64, _time: clock::DateEST) {
         // send sell order
         let mut position = self.positions.pop().unwrap();
-        position.close(ask);
+        position.close(ask, clock::current_datetime());
         self.unsettled_cash += ask * position.shares;
         self.positions.push(position);
     }
@@ -104,12 +104,12 @@ impl Position {
         }
     }
 
-    pub fn close(&mut self, ask: f64) {
+    pub fn close(&mut self, ask: f64, time: clock::DateEST) {
         self.open = false;
         self.closes = vec![Close {
             ask,
+            time,
             shares: self.shares,
-            time: clock::current_datetime(),
         }];
     }
 

@@ -4,18 +4,30 @@ use super::{
     trading::{Position, PricePeriod, Trades},
 };
 
-pub fn backtest(symbol: String, mut client: td_ameritrade::Client) {
-    let price_period = PricePeriod::new("10", "day", "1", "minute");
-    let mut trades = Backtest::new(1000.00, format!("{} chart", price_period));
-    let candles = client.price_history(&symbol, &price_period);
+pub fn backtest(symbol: String, mut client: td_ameritrade::Client, capital: f64) {
+    let price_period = PricePeriod::new("1", "day", "1", "minute");
+    let mut trades = Backtest::new(capital, price_period);
 
+    let candles = client.price_history(&symbol, &trades.price_period);
     if candles.len() < 9 {
         eprintln!("Not enough candles for minimum trading: {}", candles.len());
         return;
     }
-    // println!("First Candle {}", candles[0]);
-    // println!("Last Candle {}\n", candles.last().unwrap());
+    for c in &candles {
+        println!("candle: {}", c);
+    }
+    println!("\nSMA 9");
+    trades = strategies::sma_crossover(&candles, trades, 9);
+    trades.log_results();
 
+    println!("\nSMA 9");
+    let price_period = PricePeriod::new("1", "day", "5", "minute");
+    trades = Backtest::new(capital, price_period);
+    let candles = client.price_history(&symbol, &trades.price_period);
+    if candles.len() < 9 {
+        eprintln!("Not enough candles for minimum trading: {}", candles.len());
+        return;
+    }
     trades = strategies::sma_crossover(&candles, trades, 9);
     trades.log_results();
 }
@@ -23,14 +35,14 @@ pub fn backtest(symbol: String, mut client: td_ameritrade::Client) {
 pub struct Backtest {
     pub positions: Vec<Position>,
     pub capital: f64,
-    pub chart_period: String,
+    pub price_period: PricePeriod,
 }
 
 impl Backtest {
-    pub fn new(capital: f64, chart_period: String) -> Self {
+    pub fn new(capital: f64, price_period: PricePeriod) -> Self {
         Self {
             capital,
-            chart_period,
+            price_period,
             positions: Vec::new(),
         }
     }
@@ -50,7 +62,7 @@ impl Backtest {
         let total_wins: f64 = winning_trades.iter().map(|p| p.total_return()).sum();
         let total_losses: f64 = losing_trades.iter().map(|p| p.total_return()).sum();
 
-        println!("{}\n", self.chart_period);
+        println!("{}\n", self.price_period);
         println!(
             "Trades won: {} - total returns: ${}",
             winning_trades.len(),
@@ -75,7 +87,13 @@ impl Backtest {
         }
         println!("\nTop {} Winners", stop);
         for pos in &winning_trades[..stop] {
-            println!("\t* time: {}, return: ${}", pos.time, pos.total_return());
+            let close_time = pos.closes[0].time.time();
+            println!(
+                "\t* open: {} - close: {}, return: ${}",
+                pos.time,
+                close_time,
+                pos.total_return()
+            );
         }
         stop = 5;
         if losing_trades.len() < stop {
@@ -83,7 +101,13 @@ impl Backtest {
         }
         println!("\nTop {} Losers", stop);
         for pos in &losing_trades[..stop] {
-            println!("\t* time: {}, return: ${}", pos.time, pos.total_return());
+            let close_time = pos.closes[0].time.time();
+            println!(
+                "\t* open: {} - close: {}, return: ${}",
+                pos.time,
+                close_time,
+                pos.total_return()
+            );
         }
     }
 }
@@ -97,9 +121,9 @@ impl Trades for Backtest {
         self.positions.push(Position::open(shares, bid, time));
     }
 
-    fn close_current_position(&mut self, ask: f64) {
+    fn close_current_position(&mut self, ask: f64, time: clock::DateEST) {
         let mut position = self.positions.pop().unwrap();
-        position.close(ask);
+        position.close(ask, time);
         self.capital += ask * position.shares;
         self.positions.push(position);
     }

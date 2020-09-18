@@ -17,7 +17,7 @@ pub fn sma_crossover<T: Trades>(candles: &Vec<Candle>, mut trades: T, bars: usiz
         sma9 = studies::sma(&closed_prices(&candles[start..end]), bars);
 
         if close_day_position(candles[i + 1].time(), &trades) {
-            trades.close_current_position(candle.close);
+            trades.close_current_position(candle.close, candle.datetime);
         } else if candle.close > sma9 && setup {
             if clock::outside_market_hours(candle.time()) {
                 continue;
@@ -31,7 +31,7 @@ pub fn sma_crossover<T: Trades>(candles: &Vec<Candle>, mut trades: T, bars: usiz
                 continue;
             }
 
-            trades.close_current_position(candle.close);
+            trades.close_current_position(candle.close, candle.datetime);
         } else if candle.close < sma9 && !trades.is_current_position_open() {
             setup = true;
         }
