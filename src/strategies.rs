@@ -18,7 +18,7 @@ pub fn sma_crossover<T: Trades>(candles: &Vec<Candle>, mut trades: T, bars: usiz
 
         if close_day_position(candles[i + 1].time(), &trades) {
             trades.close_current_position(candle.close, candle.datetime);
-        } else if candle.close > sma9 && setup {
+        } else if candle.close > sma9 && candle.is_bull() && setup {
             if clock::outside_market_hours(candle.time()) {
                 continue;
             }
@@ -26,7 +26,7 @@ pub fn sma_crossover<T: Trades>(candles: &Vec<Candle>, mut trades: T, bars: usiz
             let shares = trades.max_purchaseable_shares(candle.close);
             trades.open_position(candle.close, shares, candle.datetime);
             setup = false;
-        } else if candle.close < sma9 && trades.is_current_position_open() {
+        } else if candle.close < sma9 && candle.is_bear() && trades.is_current_position_open() {
             if clock::outside_market_hours(candle.time()) {
                 continue;
             }

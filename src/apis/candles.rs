@@ -32,6 +32,14 @@ impl Candle {
     pub fn time(&self) -> clock::Time {
         self.datetime.time()
     }
+
+    pub fn is_bull(&self) -> bool {
+        self.close > self.open
+    }
+
+    pub fn is_bear(&self) -> bool {
+        self.close < self.open
+    }
 }
 
 impl fmt::Display for Candle {

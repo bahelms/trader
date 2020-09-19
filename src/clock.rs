@@ -16,11 +16,7 @@ pub fn outside_market_hours(time: Time) -> bool {
 }
 
 pub fn current_datetime() -> DateEST {
-    let ms = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .expect("Error getting milliseconds from epoch")
-        .as_millis();
-    milliseconds_to_date(ms as i64)
+    milliseconds_to_date(current_milliseconds() as i64)
 }
 
 pub fn milliseconds_to_date(ms: i64) -> DateEST {
@@ -30,10 +26,9 @@ pub fn milliseconds_to_date(ms: i64) -> DateEST {
     DateTime::<FixedOffset>::from_utc(naive_date, est)
 }
 
-pub fn current_milliseconds() -> String {
+pub fn current_milliseconds() -> u128 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .expect("Error getting milliseconds from epoch")
         .as_millis()
-        .to_string()
 }

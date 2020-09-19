@@ -6,7 +6,6 @@ mod strategies;
 mod studies;
 mod trading;
 
-use apis::td_ameritrade;
 use backtest::backtest;
 use std::env;
 
@@ -19,5 +18,5 @@ fn main() {
 
     let symbol = args[1].to_uppercase();
     let env = config::init_env();
-    backtest(symbol, td_ameritrade::client(&env), 1000.0);
+    backtest(symbol, apis::polygon::client(&env), 1000.0);
 }

@@ -1,11 +1,13 @@
 use super::{
-    apis::td_ameritrade,
+    apis::polygon,
     clock, strategies,
     trading::{Position, PricePeriod, Trades},
 };
 
-pub fn backtest(symbol: String, mut client: td_ameritrade::Client, capital: f64) {
-    let price_period = PricePeriod::new("1", "day", "1", "minute");
+pub fn backtest(symbol: String, client: polygon::Client, capital: f64) {
+    let start_date = "2019-09-17";
+    let end_date = "2020-09-17";
+    let price_period = PricePeriod::new("1", "day", "1", "minute", start_date, end_date);
     let mut trades = Backtest::new(capital, price_period);
 
     let candles = client.price_history(&symbol, &trades.price_period);
@@ -13,15 +15,12 @@ pub fn backtest(symbol: String, mut client: td_ameritrade::Client, capital: f64)
         eprintln!("Not enough candles for minimum trading: {}", candles.len());
         return;
     }
-    for c in &candles {
-        println!("candle: {}", c);
-    }
-    println!("\nSMA 9");
+    println!("\n{} SMA 9", symbol);
     trades = strategies::sma_crossover(&candles, trades, 9);
     trades.log_results();
 
-    println!("\nSMA 9");
-    let price_period = PricePeriod::new("1", "day", "5", "minute");
+    println!("\n{} SMA 9", symbol);
+    let price_period = PricePeriod::new("1", "day", "5", "minute", start_date, end_date);
     trades = Backtest::new(capital, price_period);
     let candles = client.price_history(&symbol, &trades.price_period);
     if candles.len() < 9 {
@@ -81,34 +80,19 @@ impl Backtest {
         println!("Net return: ${}", total_wins + total_losses);
         println!("Ending Capital: ${}", self.capital);
 
-        let mut stop = 5;
-        if winning_trades.len() < stop {
-            stop = winning_trades.len();
-        }
-        println!("\nTop {} Winners", stop);
-        for pos in &winning_trades[..stop] {
-            let close_time = pos.closes[0].time.time();
-            println!(
-                "\t* open: {} - close: {}, return: ${}",
-                pos.time,
-                close_time,
-                pos.total_return()
-            );
-        }
-        stop = 5;
-        if losing_trades.len() < stop {
-            stop = losing_trades.len();
-        }
-        println!("\nTop {} Losers", stop);
-        for pos in &losing_trades[..stop] {
-            let close_time = pos.closes[0].time.time();
-            println!(
-                "\t* open: {} - close: {}, return: ${}",
-                pos.time,
-                close_time,
-                pos.total_return()
-            );
-        }
+        println!(
+            "Top Winner open: {} - close: {}, return: ${}",
+            winning_trades[0].time,
+            winning_trades[0].closes[0].time.time(),
+            winning_trades[0].total_return()
+        );
+
+        println!(
+            "Top Loser open: {} - close: {}, return: ${}",
+            losing_trades[0].time,
+            losing_trades[0].closes[0].time.time(),
+            losing_trades[0].total_return()
+        );
     }
 }
 

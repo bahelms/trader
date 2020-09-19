@@ -38,10 +38,12 @@ pub struct Close {
 }
 
 pub struct PricePeriod {
-    pub period: &'static str,
-    pub period_type: &'static str,
-    pub frequency: &'static str,
-    pub frequency_type: &'static str,
+    pub period: String,
+    pub period_type: String,
+    pub frequency: String,
+    pub frequency_type: String,
+    pub start_date: String,
+    pub end_date: String,
 }
 
 #[allow(dead_code)]
@@ -129,23 +131,35 @@ impl PricePeriod {
         period_type: &'static str,
         frequency: &'static str,
         frequency_type: &'static str,
+        start_date: &'static str,
+        end_date: &'static str,
     ) -> Self {
         Self {
-            period,
-            period_type,
-            frequency,
-            frequency_type,
+            period: period.to_string(),
+            period_type: period_type.to_string(),
+            frequency: frequency.to_string(),
+            frequency_type: frequency_type.to_string(),
+            start_date: start_date.to_string(),
+            end_date: end_date.to_string(),
         }
     }
 }
 
 impl fmt::Display for PricePeriod {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(
-            f,
-            "{} {} - {} {}",
-            self.period, self.period_type, self.frequency, self.frequency_type,
-        )
+        if self.start_date != "" {
+            write!(
+                f,
+                "{} - {} on {} {}",
+                self.start_date, self.end_date, self.frequency, self.frequency_type,
+            )
+        } else {
+            write!(
+                f,
+                "{} {} - {} {}",
+                self.period, self.period_type, self.frequency, self.frequency_type,
+            )
+        }
     }
 }
 
