@@ -29,3 +29,7 @@ pub fn milliseconds_to_date(ms: i64) -> DateEST {
 pub fn weeks_ago(weeks: i64) -> Date {
     current_date() - Duration::weeks(weeks)
 }
+
+pub fn days_ago(days: i64) -> Date {
+    current_date() - Duration::days(days)
+}

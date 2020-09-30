@@ -16,6 +16,10 @@ impl Candles {
             previous_candle: None,
         }
     }
+
+    pub fn count(&self) -> usize {
+        self.candles.len()
+    }
 }
 
 pub struct CandlesIter<'a, I> {
