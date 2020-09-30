@@ -1,5 +1,39 @@
 use crate::clock;
-use std::fmt;
+use std::{fmt, slice};
+
+pub struct Candles {
+    candles: Vec<Candle>,
+}
+
+impl Candles {
+    pub fn new(candles: Vec<Candle>) -> Self {
+        Self { candles }
+    }
+
+    pub fn iter(&self) -> CandlesIter<slice::Iter<Candle>> {
+        CandlesIter {
+            list: self.candles.iter(),
+            previous_candle: None,
+        }
+    }
+}
+
+pub struct CandlesIter<'a, I> {
+    pub previous_candle: Option<&'a Candle>,
+    list: I,
+}
+
+impl<'a, I> Iterator for CandlesIter<'a, I>
+where
+    I: Iterator<Item = &'a Candle>,
+{
+    type Item = &'a Candle;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.previous_candle = self.list.next();
+        self.previous_candle
+    }
+}
 
 pub struct Candle {
     pub open: f64,
@@ -27,10 +61,6 @@ impl Candle {
             volume,
             datetime,
         }
-    }
-
-    pub fn time(&self) -> clock::Time {
-        self.datetime.time()
     }
 
     pub fn is_bull(&self) -> bool {

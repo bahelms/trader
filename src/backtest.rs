@@ -5,9 +5,10 @@ use super::{
 };
 
 pub fn backtest(symbol: String, client: polygon::Client, capital: f64) {
-    let start_date = "2019-09-17";
-    let end_date = "2020-09-17";
-    let price_period = PricePeriod::new("1", "day", "1", "minute", start_date, end_date);
+    let start_date = "2019-09-18";
+    let end_date = clock::current_date();
+    let price_period =
+        PricePeriod::new("1", "day", "1", "minute", start_date, end_date.to_string());
     let mut trades = Backtest::new(capital, price_period);
 
     let candles = client.price_history(&symbol, &trades.price_period);
@@ -15,13 +16,14 @@ pub fn backtest(symbol: String, client: polygon::Client, capital: f64) {
         eprintln!("Not enough candles for minimum trading: {}", candles.len());
         return;
     }
-    println!("\n{} SMA 9", symbol);
+    println!("\n{} (SMA9 Crossover) -- {}", symbol, trades.price_period);
     trades = strategies::sma_crossover(&candles, trades, 9);
     trades.log_results();
 
-    println!("\n{} SMA 9", symbol);
-    let price_period = PricePeriod::new("1", "day", "5", "minute", start_date, end_date);
+    let price_period =
+        PricePeriod::new("1", "day", "5", "minute", start_date, end_date.to_string());
     trades = Backtest::new(capital, price_period);
+    println!("\n{} (SMA9 Crossover) -- {}", symbol, trades.price_period);
     let candles = client.price_history(&symbol, &trades.price_period);
     if candles.len() < 9 {
         eprintln!("Not enough candles for minimum trading: {}", candles.len());
@@ -47,6 +49,11 @@ impl Backtest {
     }
 
     pub fn log_results(&self) {
+        for p in &self.positions {
+            if p.open {
+                println!("open position {}", p.time);
+            }
+        }
         let mut winning_trades = Vec::new();
         let mut losing_trades = Vec::new();
         for position in &self.positions {
@@ -61,38 +68,18 @@ impl Backtest {
         let total_wins: f64 = winning_trades.iter().map(|p| p.total_return()).sum();
         let total_losses: f64 = losing_trades.iter().map(|p| p.total_return()).sum();
 
-        println!("{}\n", self.price_period);
+        let win_percent = winning_trades.len() as f64 / self.positions.len() as f64 * 100.0;
         println!(
-            "Trades won: {} - total returns: ${}",
+            "W/L: {}/{} ${:.4}/${:.4} - Win: {:.2}% - Net: ${:.4}",
             winning_trades.len(),
-            total_wins
-        );
-        println!(
-            "Trades lost: {} - total returns: ${}",
             losing_trades.len(),
-            total_losses
-        );
-        println!(
-            "Win %: {:.2}",
-            winning_trades.len() as f64 / self.positions.len() as f64 * 100.0
-        );
-
-        println!("Net return: ${}", total_wins + total_losses);
-        println!("Ending Capital: ${}", self.capital);
-
-        println!(
-            "Top Winner open: {} - close: {}, return: ${}",
-            winning_trades[0].time,
-            winning_trades[0].closes[0].time.time(),
-            winning_trades[0].total_return()
+            total_wins,
+            total_losses,
+            win_percent,
+            total_wins + total_losses,
         );
 
-        println!(
-            "Top Loser open: {} - close: {}, return: ${}",
-            losing_trades[0].time,
-            losing_trades[0].closes[0].time.time(),
-            losing_trades[0].total_return()
-        );
+        println!("Ending Capital: ${:.4}", self.capital);
     }
 }
 

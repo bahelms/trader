@@ -1,5 +1,5 @@
-use super::candles::Candle;
-use crate::{clock, config, trading::PricePeriod};
+use super::candles::{Candle, Candles};
+use crate::{clock, config};
 
 pub fn client(env: &config::Env) -> Client {
     Client {
@@ -14,25 +14,29 @@ pub struct Client<'a> {
 }
 
 impl<'a> Client<'a> {
-    pub fn price_history(&self, symbol: &str, price_period: &PricePeriod) -> Vec<Candle> {
+    pub fn price_history(
+        &self,
+        symbol: &str,
+        start_date: clock::Date,
+        end_date: clock::Date,
+        minutes: i32,
+    ) -> Candles {
         let url = format!(
             "{}/aggs/ticker/{}/range/{}/{}/{}/{}",
-            self.base_url,
-            symbol,
-            price_period.frequency,
-            price_period.frequency_type,
-            price_period.start_date,
-            price_period.end_date
+            self.base_url, symbol, minutes, "minute", start_date, end_date
         );
         let params = vec![("apiKey", self.api_key)];
         let res = super::get(&url, String::new(), &params);
         let json = res.into_json().unwrap();
-        json["results"]
-            .as_array()
-            .expect("candles JSON error")
-            .iter()
-            .map(format_candle)
-            .collect()
+
+        Candles::new(
+            json["results"]
+                .as_array()
+                .expect("candles JSON error")
+                .iter()
+                .map(format_candle)
+                .collect(),
+        )
     }
 }
 

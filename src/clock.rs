@@ -1,22 +1,22 @@
-use chrono::{DateTime, FixedOffset, NaiveDateTime, NaiveTime};
-use std::time::{SystemTime, UNIX_EPOCH};
+use chrono::{DateTime, Duration, FixedOffset, Local, NaiveDate, NaiveDateTime, NaiveTime};
 
 pub type DateEST = DateTime<FixedOffset>;
 pub type Time = NaiveTime;
+pub type Date = NaiveDate;
 
 const HOURS: i32 = 3600;
 
-pub fn market_hours() -> (NaiveTime, NaiveTime) {
-    (NaiveTime::from_hms(9, 30, 0), NaiveTime::from_hms(16, 0, 0))
+pub fn current_date() -> Date {
+    Local::now().date().naive_local()
+}
+
+pub fn market_hours() -> (Time, Time) {
+    (Time::from_hms(9, 30, 0), Time::from_hms(16, 0, 0))
 }
 
 pub fn outside_market_hours(time: Time) -> bool {
     let (open, close) = market_hours();
     time < open || time >= close
-}
-
-pub fn current_datetime() -> DateEST {
-    milliseconds_to_date(current_milliseconds() as i64)
 }
 
 pub fn milliseconds_to_date(ms: i64) -> DateEST {
@@ -26,9 +26,6 @@ pub fn milliseconds_to_date(ms: i64) -> DateEST {
     DateTime::<FixedOffset>::from_utc(naive_date, est)
 }
 
-pub fn current_milliseconds() -> u128 {
-    SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .expect("Error getting milliseconds from epoch")
-        .as_millis()
+pub fn weeks_ago(weeks: i64) -> Date {
+    current_date() - Duration::weeks(weeks)
 }
