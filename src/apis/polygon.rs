@@ -16,27 +16,26 @@ pub struct Client<'a> {
 impl<'a> Client<'a> {
     pub fn price_history(
         &self,
-        symbol: &str,
+        ticker: &str,
         start_date: clock::Date,
         end_date: clock::Date,
-        minutes: i32,
-    ) -> Candles {
+        frequency: String,
+        frequency_type: String,
+    ) -> Vec<Candle> {
         let url = format!(
             "{}/aggs/ticker/{}/range/{}/{}/{}/{}",
-            self.base_url, symbol, minutes, "minute", start_date, end_date
+            self.base_url, ticker, frequency, frequency_type, start_date, end_date
         );
         let params = vec![("apiKey", self.api_key)];
         let res = super::get(&url, String::new(), &params);
         let json = res.into_json().unwrap();
 
-        Candles::new(
-            json["results"]
-                .as_array()
-                .expect("candles JSON error")
-                .iter()
-                .map(format_candle)
-                .collect(),
-        )
+        json["results"]
+            .as_array()
+            .expect("candles JSON error")
+            .iter()
+            .map(format_candle)
+            .collect()
     }
 }
 

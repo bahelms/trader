@@ -1,28 +1,28 @@
-use super::{studies, trading::Account};
-use crate::apis::candles::{Candle, Candles};
+use super::{
+    studies,
+    trading::{Account, PriceData},
+};
+use crate::apis::candles::Candle;
 
 // Buy when price closes above SMA9.
 // Sell when price closes below SMA9.
-pub fn sma_crossover(account: &mut Account, candles: &Candles, ticker: &String) {
+pub fn sma_crossover(ticker: &String, price_data: &mut PriceData, account: &mut Account) {
     let mut setup = false;
-    let mut candles_iter = candles.iter();
+    let candles = price_data.history(ticker, 9, "1:minute");
+    let mut last_candle = &candles[0];
 
     // init studies
     let mut sma9 = studies::SMA::new(9);
-    for candle in &mut candles_iter {
+    for candle in candles {
         sma9.add(candle.close);
-        if sma9.value.is_some() {
-            break;
-        }
+        last_candle = candle;
     }
 
-    if let Some(previous_candle) = candles_iter.previous_candle {
-        if previous_candle.close < sma9.value.unwrap() {
-            setup = true;
-        }
+    if last_candle.close < sma9.value.unwrap() {
+        setup = true;
     }
 
-    for candle in &mut candles_iter {
+    while let Some(candle) = price_data.next_candle() {
         sma9.add(candle.close);
         let sma9_value = sma9.value.unwrap();
 

@@ -1,7 +1,45 @@
-use super::clock;
+use super::{apis, apis::candles::Candle, clock};
 use std::fmt;
 
 const COMMISSION: f64 = 0.01; // TD Ameritrade's trade commission
+
+pub struct PriceData<'a> {
+    client: apis::polygon::Client<'a>,
+    candles: Vec<Candle>,
+    current_index: usize,
+}
+
+impl<'a> PriceData<'a> {
+    pub fn new(client: apis::polygon::Client<'a>) -> Self {
+        Self {
+            client,
+            candles: Vec::new(),
+            current_index: 0,
+        }
+    }
+
+    pub fn history(&mut self, ticker: &String, bars: usize, frequency: &str) -> &[Candle] {
+        let (frequency, frequency_type) = parse_frequency(frequency);
+        let start_date = clock::weeks_ago(1);
+        let end_date = clock::current_date();
+        self.candles =
+            self.client
+                .price_history(ticker, start_date, end_date, frequency, frequency_type);
+        self.current_index = bars;
+        &self.candles[..bars]
+    }
+
+    pub fn next_candle(&mut self) -> Option<&Candle> {
+        let candle = self.candles.get(self.current_index);
+        self.current_index += 1;
+        candle
+    }
+}
+
+fn parse_frequency(code: &str) -> (String, String) {
+    let strings: Vec<&str> = code.split(':').collect();
+    (strings[0].to_string(), strings[1].to_string())
+}
 
 pub struct Broker;
 
