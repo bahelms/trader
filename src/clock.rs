@@ -1,4 +1,5 @@
-use chrono::{DateTime, Duration, FixedOffset, Local, NaiveDate, NaiveDateTime, NaiveTime};
+pub use chrono::Duration;
+use chrono::{DateTime, FixedOffset, Local, NaiveDate, NaiveDateTime, NaiveTime};
 
 pub type DateEST = DateTime<FixedOffset>;
 pub type Time = NaiveTime;
@@ -31,5 +32,9 @@ pub fn weeks_ago(weeks: i64) -> Date {
 }
 
 pub fn days_ago(days: i64) -> Date {
-    current_date() - Duration::days(days)
+    current_date() - self::days(days)
+}
+
+pub fn days(days: i64) -> Duration {
+    Duration::days(days)
 }

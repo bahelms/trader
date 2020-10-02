@@ -20,7 +20,7 @@ impl<'a> PriceData<'a> {
 
     pub fn history(&mut self, ticker: &String, bars: usize, frequency: &str) -> &[Candle] {
         let (frequency, frequency_type) = parse_frequency(frequency);
-        let start_date = clock::weeks_ago(1);
+        let start_date = clock::weeks_ago(8);
         let end_date = clock::current_date();
         self.candles =
             self.client
@@ -36,62 +36,77 @@ impl<'a> PriceData<'a> {
     }
 }
 
-fn parse_frequency(code: &str) -> (String, String) {
-    let strings: Vec<&str> = code.split(':').collect();
-    (strings[0].to_string(), strings[1].to_string())
+pub struct Broker {
+    capital: f64,
+    unsettled_cash: f64,
+    settle_date: Option<clock::Date>,
 }
 
-pub struct Broker;
-
 impl Broker {
-    fn capital(&self) -> f64 {
-        1000.0
+    pub fn new() -> Self {
+        Self {
+            capital: 1000.0,
+            unsettled_cash: 0.0,
+            settle_date: None,
+        }
     }
 
-    fn buy_order(&self, _ticker: &String, _shares: i32) {}
-    fn sell_order(&self, _ticker: &String, _shares: i32, _price: f64) {}
+    fn capital(&mut self, time: clock::DateEST) -> f64 {
+        if let Some(settle_date) = self.settle_date {
+            if time.date().naive_local() >= settle_date {
+                self.capital += self.unsettled_cash;
+                self.unsettled_cash = 0.0;
+            }
+        }
+        self.capital
+    }
+
+    fn unsettled_cash(&self) -> f64 {
+        self.unsettled_cash
+    }
+
+    fn buy_order(&mut self, _ticker: &String, shares: i32, price: f64, _time: clock::DateEST) {
+        if self.unsettled_cash > 0.0 {
+            return;
+        }
+
+        let cost = price * shares as f64;
+        if cost > self.capital {
+            return;
+        }
+
+        self.capital -= cost;
+    }
+
+    fn sell_order(&mut self, _ticker: &String, shares: i32, price: f64, time: clock::DateEST) {
+        self.unsettled_cash = (price * shares as f64) - COMMISSION;
+        self.settle_date = Some(time.date().naive_local() + clock::days(2));
+    }
 }
 
 pub struct Account {
-    pub capital: f64,
-    pub pdt_remaining: i32,
-    pub unsettled_cash: f64,
     pub positions: Vec<Position>,
-    pub broker: Broker,
+    broker: Broker,
 }
 
 impl Account {
     pub fn new(broker: Broker) -> Self {
-        let capital = broker.capital();
         Self {
             broker,
-            capital,
-            pdt_remaining: 3,
-            unsettled_cash: 0.0,
             positions: Vec::new(),
         }
     }
 
-    pub fn max_shares(&self, price: f64) -> i32 {
-        (self.capital / price) as i32
+    pub fn max_shares(&mut self, price: f64, time: clock::DateEST) -> i32 {
+        (self.broker.capital(time) / price) as i32
     }
 
     pub fn open_position(&mut self, ticker: &String, bid: f64, shares: i32, time: clock::DateEST) {
-        if shares <= 0 || clock::outside_market_hours(time.time()) || self.pdt_remaining < 1 {
+        if shares <= 0 || clock::outside_market_hours(time.time()) {
             return;
         }
 
-        let cost = bid * shares as f64;
-        if cost > self.capital {
-            println!(
-                "Not enough capital for position - capital: {}, cost: {}",
-                self.capital, cost
-            );
-            return;
-        }
-
-        self.broker.buy_order(ticker, shares);
-        self.capital -= cost;
+        self.broker.buy_order(ticker, shares, bid, time);
         let pos = Position::open(shares, bid, time);
         self.positions.push(pos);
     }
@@ -102,11 +117,8 @@ impl Account {
 
     pub fn close_current_position(&mut self, ticker: &String, ask: f64, time: clock::DateEST) {
         let mut position = self.positions.pop().unwrap();
-        self.broker.sell_order(ticker, position.shares, ask);
+        self.broker.sell_order(ticker, position.shares, ask, time);
         position.close(ask, time);
-        self.unsettled_cash += ask * position.shares as f64;
-        self.unsettled_cash -= COMMISSION;
-        self.pdt_remaining -= 1;
         self.positions.push(position);
     }
 
@@ -118,7 +130,7 @@ impl Account {
         }
     }
 
-    pub fn log_results(&self) {
+    pub fn log_results(&mut self) {
         for p in &self.positions {
             if p.open {
                 println!("open position {}", p.time);
@@ -128,6 +140,14 @@ impl Account {
         let mut winning_trades = Vec::new();
         let mut losing_trades = Vec::new();
         for position in &self.positions {
+            println!(
+                "Bought {} @ ${} - closed: {:?}, return: ${:.2} -- {}",
+                position.shares,
+                position.bid,
+                position.closes,
+                position.total_return(),
+                position.time
+            );
             if position.total_return() >= 0.0 {
                 winning_trades.push(position);
             } else {
@@ -150,8 +170,9 @@ impl Account {
             total_wins + total_losses,
         );
 
-        println!("Unsettled cash: ${:.4}", self.unsettled_cash);
-        println!("Ending Capital: ${:.4}", self.capital);
+        let time = clock::milliseconds_to_date(0);
+        let final_capital = self.broker.unsettled_cash() + self.broker.capital(time);
+        println!("Ending Capital: ${:.4}", final_capital);
     }
 }
 
@@ -219,6 +240,11 @@ impl fmt::Debug for Close {
     }
 }
 
+fn parse_frequency(code: &str) -> (String, String) {
+    let strings: Vec<&str> = code.split(':').collect();
+    (strings[0].to_string(), strings[1].to_string())
+}
+
 #[cfg(test)]
 mod tests {
     use super::{clock, Account, Broker, Position};
@@ -231,7 +257,7 @@ mod tests {
 
     #[test]
     fn max_shares_returns_whole_number_of_purchaseable_shares_for_price() {
-        let broker = Broker {};
+        let broker = Broker::new();
         let acct = Account::new(broker);
         assert_eq!(acct.max_shares(12.31), 81)
     }
@@ -239,7 +265,7 @@ mod tests {
     #[test]
     fn cannot_open_position_without_shares() {
         let ticker = "ABC".to_string();
-        let broker = Broker {};
+        let broker = Broker::new();
         let mut acct = Account::new(broker);
         acct.open_position(&ticker, 10.00, 0, datetime(9, 30, 0));
         assert_eq!(acct.positions.len(), 0);
@@ -248,9 +274,12 @@ mod tests {
     #[test]
     fn cannot_open_position_without_enough_capital() {
         let ticker = "ABC".to_string();
-        let broker = Broker {};
+        let broker = Broker {
+            capital: 5.99,
+            unsettled_cash: 0.0,
+            settle_date: None,
+        };
         let mut acct = Account::new(broker);
-        acct.capital = 5.99;
         acct.open_position(&ticker, 10.00, 11, datetime(9, 31, 0));
         assert_eq!(acct.positions.len(), 0);
     }
@@ -258,30 +287,20 @@ mod tests {
     #[test]
     fn cannot_open_position_outside_of_market_hours() {
         let ticker = "ABC".to_string();
-        let broker = Broker {};
+        let broker = Broker::new();
         let mut acct = Account::new(broker);
         acct.open_position(&ticker, 10.00, 1, datetime(9, 29, 59));
         assert_eq!(acct.positions.len(), 0);
     }
 
     #[test]
-    fn cannot_open_position_when_pdt_rule_is_hit() {
-        let ticker = "ABC".to_string();
-        let broker = Broker {};
-        let mut acct = Account::new(broker);
-        acct.pdt_remaining = 0;
-        acct.open_position(&ticker, 10.00, 1, datetime(10, 29, 59));
-        assert_eq!(acct.positions.len(), 0);
-    }
-
-    #[test]
     fn close_current_position_puts_return_into_unsettled_cash_minus_commission() {
         let ticker = "ABC".to_string();
-        let broker = Broker {};
+        let broker = Broker::new();
         let mut acct = Account::new(broker);
         acct.open_position(&ticker, 10.00, 5, datetime(9, 30, 0));
         acct.close_current_position(&ticker, 11.00, datetime(9, 31, 0));
-        assert_eq!(acct.unsettled_cash, 54.99);
+        assert_eq!(acct.unsettled_cash(), 54.99);
         assert_eq!(acct.capital, 950.00);
     }
 

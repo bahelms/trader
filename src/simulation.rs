@@ -6,7 +6,7 @@ use super::{
 
 pub fn run_simulation(tickers: &[String], env: &config::Env) {
     println!("Only running simulation for first ticker {:?}", tickers[0]);
-    let broker = Broker {};
+    let broker = Broker::new();
     let mut account = Account::new(broker);
     let mut price_data = PriceData::new(polygon::client(&env));
 

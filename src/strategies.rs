@@ -27,7 +27,7 @@ pub fn sma_crossover(ticker: &String, price_data: &mut PriceData, account: &mut 
         let sma9_value = sma9.value.unwrap();
 
         if entry_signal(candle, sma9_value, setup) {
-            let shares = account.max_shares(candle.close);
+            let shares = account.max_shares(candle.close, candle.datetime);
             account.open_position(ticker, candle.close, shares, candle.datetime);
             setup = false;
         } else if exit_signal(candle, sma9_value, account) {
