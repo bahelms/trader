@@ -1,5 +1,5 @@
 use super::{
-    studies,
+    clock, studies,
     trading::{Account, PriceData},
 };
 use crate::apis::candles::Candle;
@@ -8,7 +8,8 @@ use crate::apis::candles::Candle;
 // Sell when price closes below SMA9.
 pub fn sma_crossover(ticker: &String, price_data: &mut PriceData, account: &mut Account) {
     let mut setup = false;
-    let candles = price_data.history(ticker, 9, "1:minute");
+    let start_date = clock::weeks_ago(8);
+    let candles = price_data.history(ticker, start_date, 9, "1:minute");
     let mut last_candle = &candles[0];
 
     // init studies
@@ -31,7 +32,7 @@ pub fn sma_crossover(ticker: &String, price_data: &mut PriceData, account: &mut 
             account.open_position(ticker, candle.close, shares, candle.datetime);
             setup = false;
         } else if exit_signal(candle, sma9_value, account) {
-            account.close_current_position(ticker, candle.close, candle.datetime);
+            account.close_position(ticker, candle.close, candle.datetime);
         } else if candle.close < sma9_value && !account.is_current_position_open() {
             setup = true;
         }

@@ -1,26 +1,5 @@
 use crate::clock;
-use std::{fmt, slice};
-
-pub struct Candles {
-    candles: Vec<Candle>,
-}
-
-impl Candles {
-    pub fn new(candles: Vec<Candle>) -> Self {
-        Self { candles }
-    }
-
-    pub fn iter(&self) -> CandlesIter<slice::Iter<Candle>> {
-        CandlesIter {
-            list: self.candles.iter(),
-            previous_candle: None,
-        }
-    }
-
-    pub fn count(&self) -> usize {
-        self.candles.len()
-    }
-}
+use std::fmt;
 
 pub struct CandlesIter<'a, I> {
     pub previous_candle: Option<&'a Candle>,

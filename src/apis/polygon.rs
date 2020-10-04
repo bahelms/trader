@@ -1,4 +1,4 @@
-use super::candles::{Candle, Candles};
+use super::candles::Candle;
 use crate::{clock, config};
 
 pub fn client(env: &config::Env) -> Client {
