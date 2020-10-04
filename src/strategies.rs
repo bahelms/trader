@@ -8,7 +8,7 @@ use crate::apis::candles::Candle;
 // Sell when price closes below SMA9.
 pub fn sma_crossover(ticker: &String, price_data: &mut PriceData, account: &mut Account) {
     let mut setup = false;
-    let start_date = clock::weeks_ago(8);
+    let start_date = clock::days_ago(60);
     let candles = price_data.history(ticker, start_date, 9, "1:minute");
     let mut last_candle = &candles[0];
 

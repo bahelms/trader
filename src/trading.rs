@@ -114,7 +114,7 @@ impl Account {
     }
 
     pub fn open_position(&mut self, ticker: &String, bid: f64, shares: i32, time: clock::DateEST) {
-        if shares <= 0 || clock::outside_market_hours(time.time()) {
+        if shares <= 0 || clock::outside_market_hours(time) {
             return;
         }
 
@@ -254,18 +254,15 @@ fn parse_frequency(code: &str) -> (String, String) {
 #[cfg(test)]
 mod tests {
     use super::{clock, Account, Broker, Position};
-    use chrono::{DateTime, FixedOffset};
-
-    fn datetime(h: u32, m: u32, s: u32) -> DateTime<FixedOffset> {
-        let naive_datetime = clock::current_date().and_hms(h, m, s);
-        DateTime::<FixedOffset>::from_utc(naive_datetime, FixedOffset::west(0))
-    }
 
     #[test]
     fn max_shares_returns_whole_number_of_purchaseable_shares_for_price() {
         let broker = Broker::new();
         let mut acct = Account::new(broker);
-        assert_eq!(acct.max_shares(12.31, datetime(9, 30, 0)), 81);
+        assert_eq!(
+            acct.max_shares(12.31, clock::datetime(2020, 9, 29, 9, 30, 0)),
+            81
+        );
     }
 
     #[test]
@@ -273,7 +270,7 @@ mod tests {
         let ticker = "ABC".to_string();
         let broker = Broker::new();
         let mut acct = Account::new(broker);
-        acct.open_position(&ticker, 10.00, 0, datetime(9, 30, 0));
+        acct.open_position(&ticker, 10.00, 0, clock::datetime(2020, 9, 29, 9, 30, 0));
         assert_eq!(acct.positions.len(), 0);
     }
 
@@ -286,7 +283,7 @@ mod tests {
             settle_date: None,
         };
         let mut acct = Account::new(broker);
-        acct.open_position(&ticker, 10.00, 11, datetime(9, 31, 0));
+        acct.open_position(&ticker, 10.00, 11, clock::datetime(2020, 9, 29, 9, 31, 0));
         assert_eq!(acct.positions.len(), 0);
     }
 
@@ -295,26 +292,29 @@ mod tests {
         let ticker = "ABC".to_string();
         let broker = Broker::new();
         let mut acct = Account::new(broker);
-        acct.open_position(&ticker, 10.00, 1, datetime(9, 29, 59));
+        acct.open_position(&ticker, 10.00, 1, clock::datetime(2020, 9, 29, 9, 29, 59));
         assert_eq!(acct.positions.len(), 0);
     }
 
     #[test]
     fn close_position_puts_return_into_unsettled_cash_minus_commission() {
-        let date = datetime(9, 30, 0);
+        let date = clock::datetime(2020, 9, 29, 9, 30, 0);
         let ticker = "ABC".to_string();
         let broker = Broker::new();
         let mut acct = Account::new(broker);
         acct.open_position(&ticker, 10.00, 5, date);
-        acct.close_position(&ticker, 11.00, datetime(9, 31, 0));
+        acct.close_position(&ticker, 11.00, clock::datetime(2020, 9, 29, 9, 31, 0));
         assert_eq!(acct.broker.unsettled_cash(), 54.99);
-        assert_eq!(acct.broker.capital(datetime(9, 30, 0)), 950.00);
+        assert_eq!(
+            acct.broker.capital(clock::datetime(2020, 9, 29, 9, 30, 0)),
+            950.00
+        );
     }
 
     #[test]
     fn position_provides_return_value() {
-        let mut position = Position::open(10, 5.00, datetime(9, 31, 0));
-        position.close(6.00, datetime(9, 31, 0));
+        let mut position = Position::open(10, 5.00, clock::datetime(2020, 9, 29, 9, 31, 0));
+        position.close(6.00, clock::datetime(2020, 9, 29, 9, 31, 0));
         let total_return = position.total_return();
         assert_eq!(total_return, 10.00);
     }
