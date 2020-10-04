@@ -45,8 +45,7 @@ pub fn datetime(y: i32, month: u32, d: u32, h: u32, m: u32, s: u32) -> DateTime<
 
 #[cfg(test)]
 mod tests {
-    use super::{datetime, outside_market_hours, HOURS};
-    use chrono::{FixedOffset, TimeZone};
+    use super::{datetime, outside_market_hours};
 
     #[test]
     fn market_hours() {
@@ -56,33 +55,25 @@ mod tests {
 
     #[test]
     fn pre_market_hours() {
-        let time = FixedOffset::west(4 * HOURS)
-            .ymd(2020, 9, 29)
-            .and_hms(9, 29, 59);
+        let time = datetime(2020, 9, 29, 9, 29, 59);
         assert_eq!(outside_market_hours(time), true);
     }
 
     #[test]
     fn post_market_hours() {
-        let time = FixedOffset::west(4 * HOURS)
-            .ymd(2020, 9, 29)
-            .and_hms(16, 0, 0);
+        let time = datetime(2020, 9, 29, 16, 0, 0);
         assert_eq!(outside_market_hours(time), true);
     }
 
     #[test]
     fn saturday_is_outside_market_hours() {
-        let time = FixedOffset::west(4 * HOURS)
-            .ymd(2020, 9, 26)
-            .and_hms(10, 0, 0);
+        let time = datetime(2020, 9, 26, 10, 0, 0);
         assert_eq!(outside_market_hours(time), true);
     }
 
     #[test]
     fn sunday_is_outside_market_hours() {
-        let time = FixedOffset::west(4 * HOURS)
-            .ymd(2020, 9, 26)
-            .and_hms(10, 0, 0);
+        let time = datetime(2020, 9, 27, 10, 0, 0);
         assert_eq!(outside_market_hours(time), true);
     }
 }
