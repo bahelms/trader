@@ -17,8 +17,8 @@ impl<'a> Client<'a> {
     pub fn price_history(
         &self,
         ticker: &str,
-        start_date: clock::Date,
-        end_date: clock::Date,
+        start_date: clock::DateWithoutTZ,
+        end_date: clock::DateWithoutTZ,
         frequency: String,
         frequency_type: String,
     ) -> Vec<Candle> {

@@ -21,7 +21,7 @@ impl<'a> PriceData<'a> {
     pub fn history(
         &mut self,
         ticker: &String,
-        start_date: clock::Date,
+        start_date: clock::DateWithoutTZ,
         bars: usize,
         frequency: &str,
     ) -> &[Candle] {
@@ -44,7 +44,7 @@ impl<'a> PriceData<'a> {
 pub struct Broker {
     capital: f64,
     unsettled_cash: f64,
-    settle_date: Option<clock::Date>,
+    settle_date: Option<clock::LocalDate>,
 }
 
 impl Broker {
@@ -56,9 +56,9 @@ impl Broker {
         }
     }
 
-    fn capital(&mut self, time: clock::DateEST) -> f64 {
+    fn capital(&mut self, time: clock::LocalDateTime) -> f64 {
         if let Some(settle_date) = self.settle_date {
-            if time.date().naive_local() >= settle_date {
+            if time.date() >= settle_date {
                 self.capital += self.unsettled_cash;
                 self.unsettled_cash = 0.0;
             }
@@ -70,12 +70,20 @@ impl Broker {
         self.unsettled_cash
     }
 
+    fn is_market_open(&self, datetime: clock::LocalDateTime) -> bool {
+        let open = clock::Time::from_hms(9, 30, 0);
+        let close = clock::Time::from_hms(16, 0, 0);
+        let time = datetime.time();
+        let day_of_week: i32 = datetime.date().format("%u").to_string().parse().unwrap();
+        time >= open && time < close && day_of_week < 6
+    }
+
     fn buy_order(
         &mut self,
         _ticker: &String,
         shares: i32,
         price: f64,
-        _time: clock::DateEST,
+        _time: clock::LocalDateTime,
     ) -> Option<f64> {
         if self.unsettled_cash > 0.0 {
             return None;
@@ -90,9 +98,15 @@ impl Broker {
         Some(self.capital)
     }
 
-    fn sell_order(&mut self, _ticker: &String, shares: i32, price: f64, time: clock::DateEST) {
+    fn sell_order(
+        &mut self,
+        _ticker: &String,
+        shares: i32,
+        price: f64,
+        time: clock::LocalDateTime,
+    ) {
         self.unsettled_cash = (price * shares as f64) - COMMISSION;
-        self.settle_date = Some(time.date().naive_local() + clock::days(2));
+        self.settle_date = Some(time.date() + clock::days(2));
     }
 }
 
@@ -109,12 +123,18 @@ impl Account {
         }
     }
 
-    pub fn max_shares(&mut self, price: f64, time: clock::DateEST) -> i32 {
+    pub fn max_shares(&mut self, price: f64, time: clock::LocalDateTime) -> i32 {
         (self.broker.capital(time) / price) as i32
     }
 
-    pub fn open_position(&mut self, ticker: &String, bid: f64, shares: i32, time: clock::DateEST) {
-        if shares <= 0 || clock::outside_market_hours(time) {
+    pub fn open_position(
+        &mut self,
+        ticker: &String,
+        bid: f64,
+        shares: i32,
+        time: clock::LocalDateTime,
+    ) {
+        if shares <= 0 || !self.broker.is_market_open(time) {
             return;
         }
 
@@ -128,7 +148,7 @@ impl Account {
         self.positions.last()
     }
 
-    pub fn close_position(&mut self, ticker: &String, ask: f64, time: clock::DateEST) {
+    pub fn close_position(&mut self, ticker: &String, ask: f64, time: clock::LocalDateTime) {
         let mut position = self.positions.pop().unwrap();
         self.broker.sell_order(ticker, position.shares, ask, time);
         position.close(ask, time);
@@ -187,11 +207,11 @@ pub struct Position {
     pub shares: i32,
     pub bid: f64,
     pub closes: Vec<Close>,
-    pub time: clock::DateEST,
+    pub time: clock::LocalDateTime,
 }
 
 impl Position {
-    pub fn open(shares: i32, bid: f64, time: clock::DateEST) -> Self {
+    pub fn open(shares: i32, bid: f64, time: clock::LocalDateTime) -> Self {
         Self {
             shares,
             bid,
@@ -201,7 +221,7 @@ impl Position {
         }
     }
 
-    pub fn close(&mut self, ask: f64, time: clock::DateEST) {
+    pub fn close(&mut self, ask: f64, time: clock::LocalDateTime) {
         self.open = false;
         self.closes = vec![Close {
             ask,
@@ -237,7 +257,7 @@ impl fmt::Display for Position {
 pub struct Close {
     pub shares: i32,
     pub ask: f64,
-    pub time: clock::DateEST,
+    pub time: clock::LocalDateTime,
 }
 
 impl fmt::Debug for Close {
@@ -317,5 +337,40 @@ mod tests {
         position.close(6.00, clock::datetime(2020, 9, 29, 9, 31, 0));
         let total_return = position.total_return();
         assert_eq!(total_return, 10.00);
+    }
+
+    #[test]
+    fn market_hours() {
+        let broker = Broker::new();
+        let time = clock::datetime(2020, 9, 29, 9, 30, 00);
+        assert_eq!(broker.is_market_open(time), true);
+    }
+
+    #[test]
+    fn pre_market_hours() {
+        let broker = Broker::new();
+        let time = clock::datetime(2020, 9, 29, 9, 29, 59);
+        assert_eq!(broker.is_market_open(time), false);
+    }
+
+    #[test]
+    fn post_market_hours() {
+        let broker = Broker::new();
+        let time = clock::datetime(2020, 9, 29, 16, 0, 0);
+        assert_eq!(broker.is_market_open(time), false);
+    }
+
+    #[test]
+    fn saturday_is_outside_market_hours() {
+        let broker = Broker::new();
+        let time = clock::datetime(2020, 9, 26, 10, 0, 0);
+        assert_eq!(broker.is_market_open(time), false);
+    }
+
+    #[test]
+    fn sunday_is_outside_market_hours() {
+        let broker = Broker::new();
+        let time = clock::datetime(2020, 9, 27, 10, 0, 0);
+        assert_eq!(broker.is_market_open(time), false);
     }
 }

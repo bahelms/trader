@@ -24,7 +24,7 @@ pub struct Candle {
     pub high: f64,
     pub low: f64,
     pub volume: i64,
-    pub datetime: clock::DateEST,
+    pub datetime: clock::LocalDateTime,
 }
 
 impl Candle {
@@ -34,7 +34,7 @@ impl Candle {
         high: f64,
         low: f64,
         volume: i64,
-        datetime: clock::DateEST,
+        datetime: clock::LocalDateTime,
     ) -> Self {
         Self {
             open,
