@@ -106,7 +106,11 @@ impl Broker {
         time: clock::LocalDateTime,
     ) {
         self.unsettled_cash = (price * shares as f64) - COMMISSION;
-        self.settle_date = Some(time.date() + clock::days(2));
+        let mut settle_date = time.date() + clock::days(2);
+        while clock::day_of_week(settle_date) > 5 {
+            settle_date = settle_date + clock::days(1);
+        }
+        self.settle_date = Some(settle_date);
     }
 }
 
@@ -372,5 +376,36 @@ mod tests {
         let broker = Broker::new();
         let time = clock::datetime(2020, 9, 27, 10, 0, 0);
         assert_eq!(broker.is_market_open(time), false);
+    }
+
+    #[test]
+    fn closing_position_on_friday_puts_settle_date_on_monday() {
+        let ticker = "ABC".to_string();
+        let broker = Broker::new();
+        let mut acct = Account::new(broker);
+        let close_time = clock::datetime(2020, 9, 25, 10, 0, 1);
+
+        acct.open_position(&ticker, 100.00, 10, clock::datetime(2020, 9, 25, 10, 0, 0));
+        acct.close_position(&ticker, 100.00, close_time);
+        assert_eq!(acct.broker.capital(close_time), 0.0);
+        assert_eq!(acct.broker.capital(close_time + clock::days(1)), 0.0);
+        assert_eq!(acct.broker.capital(close_time + clock::days(2)), 0.0);
+        assert_eq!(acct.broker.capital(close_time + clock::days(3)), 999.99);
+    }
+
+    #[test]
+    fn closing_position_on_thursday_puts_settle_date_on_monday() {
+        let ticker = "ABC".to_string();
+        let broker = Broker::new();
+        let mut acct = Account::new(broker);
+        let close_time = clock::datetime(2020, 9, 24, 10, 0, 1);
+
+        acct.open_position(&ticker, 100.00, 10, clock::datetime(2020, 9, 24, 10, 0, 0));
+        acct.close_position(&ticker, 100.00, close_time);
+        assert_eq!(acct.broker.capital(close_time), 0.0);
+        assert_eq!(acct.broker.capital(close_time + clock::days(1)), 0.0);
+        assert_eq!(acct.broker.capital(close_time + clock::days(2)), 0.0);
+        assert_eq!(acct.broker.capital(close_time + clock::days(3)), 0.0);
+        assert_eq!(acct.broker.capital(close_time + clock::days(4)), 999.99);
     }
 }

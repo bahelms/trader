@@ -27,3 +27,7 @@ pub fn days(days: i64) -> Duration {
 pub fn datetime(y: i32, month: u32, d: u32, h: u32, m: u32, s: u32) -> LocalDateTime {
     Local.ymd(y, month, d).and_hms(h, m, s)
 }
+
+pub fn day_of_week(date: LocalDate) -> i32 {
+    date.format("%u").to_string().parse().unwrap()
+}
