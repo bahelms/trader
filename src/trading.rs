@@ -125,12 +125,12 @@ impl Broker for SimBroker {
     }
 }
 
-pub struct Account<B> {
-    pub positions: Vec<Position>,
+pub struct Account<'a, B> {
+    pub positions: Vec<Position<'a>>,
     broker: B,
 }
 
-impl<B> Account<B>
+impl<'a, B> Account<'a, B>
 where
     B: Broker,
 {
@@ -147,7 +147,7 @@ where
 
     pub fn open_position(
         &mut self,
-        ticker: &String,
+        ticker: &'a String,
         bid: f64,
         shares: i32,
         time: clock::LocalDateTime,
@@ -157,7 +157,7 @@ where
         }
 
         if let Some(_) = self.broker.buy_order(ticker, shares, bid, time) {
-            let pos = Position::open(shares, bid, time);
+            let pos = Position::open(ticker, shares, bid, time);
             self.positions.push(pos);
         }
     }
@@ -220,20 +220,22 @@ where
     }
 }
 
-pub struct Position {
+pub struct Position<'a> {
     pub open: bool,
     pub shares: i32,
     pub bid: f64,
     pub closes: Vec<Close>,
     pub time: clock::LocalDateTime,
+    pub ticker: &'a String,
 }
 
-impl Position {
-    pub fn open(shares: i32, bid: f64, time: clock::LocalDateTime) -> Self {
+impl<'a> Position<'a> {
+    pub fn open(ticker: &'a String, shares: i32, bid: f64, time: clock::LocalDateTime) -> Self {
         Self {
             shares,
             bid,
             time,
+            ticker,
             open: true,
             closes: Vec::new(),
         }
@@ -258,11 +260,12 @@ impl Position {
     }
 }
 
-impl fmt::Display for Position {
+impl<'a> fmt::Display for Position<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
-            "{} @ {} - {} - Closed {:?} -- return ${:.2}",
+            "{}: {} @ {} - {} - Closed {:?} -- return ${:.2}",
+            self.ticker,
             self.shares,
             self.bid,
             self.time,
@@ -347,7 +350,9 @@ mod tests {
 
     #[test]
     fn position_provides_return_value() {
-        let mut position = Position::open(10, 5.00, clock::datetime(2020, 9, 29, 9, 31, 0));
+        let ticker = "ABC".to_string();
+        let mut position =
+            Position::open(&ticker, 10, 5.00, clock::datetime(2020, 9, 29, 9, 31, 0));
         position.close(6.00, clock::datetime(2020, 9, 29, 9, 31, 0));
         let total_return = position.total_return();
         assert_eq!(total_return, 10.00);

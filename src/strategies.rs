@@ -42,7 +42,7 @@ impl<'a> SmaCrossover<'a> {
         candle.close < sma9_value
     }
 
-    pub fn execute<B: Broker>(&mut self, price_data: &mut PriceData, account: &mut Account<B>) {
+    pub fn execute<B: Broker>(&mut self, price_data: &mut PriceData, account: &mut Account<'a, B>) {
         while let Some(candle) = price_data.next_candle() {
             self.sma9.add(candle.close);
 
