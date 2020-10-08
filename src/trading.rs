@@ -18,14 +18,9 @@ impl<'a> PriceData<'a> {
         }
     }
 
-    pub fn history(
-        &mut self,
-        ticker: &String,
-        start_date: clock::DateWithoutTZ,
-        bars: usize,
-        frequency: &str,
-    ) -> &[Candle] {
+    pub fn history(&mut self, ticker: &String, bars: usize, frequency: &str) -> &[Candle] {
         let (frequency, frequency_type) = parse_frequency(frequency);
+        let start_date = clock::days_ago(60);
         let end_date = clock::current_date();
         self.candles =
             self.client
