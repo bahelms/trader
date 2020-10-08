@@ -170,7 +170,6 @@ where
         let mut position = self.positions.pop().unwrap();
         self.broker.sell_order(ticker, position.shares, ask, time);
         position.close(ask, time);
-        println!("{} {}", ticker, position);
         self.positions.push(position);
     }
 
