@@ -18,15 +18,21 @@ impl<'a> PriceData<'a> {
         }
     }
 
-    pub fn history(&mut self, ticker: &String, bars: usize, frequency: &str) -> &[Candle] {
+    pub fn history(&mut self, ticker: &String, bars: usize, frequency: &str) -> Option<&[Candle]> {
         let (frequency, frequency_type) = parse_frequency(frequency);
         let start_date = clock::days_ago(60);
         let end_date = clock::current_date();
-        self.candles =
+        let history =
             self.client
                 .price_history(ticker, start_date, end_date, frequency, frequency_type);
-        self.current_index = bars;
-        &self.candles[..bars]
+
+        if let Some(candles) = history {
+            self.candles = candles;
+            self.current_index = bars;
+            Some(&self.candles[..bars])
+        } else {
+            None
+        }
     }
 
     pub fn next_candle(&mut self) -> Option<&Candle> {
@@ -188,35 +194,8 @@ where
         }
     }
 
-    pub fn log_results(&mut self) {
-        let mut winning_trades = Vec::new();
-        let mut losing_trades = Vec::new();
-        for position in &self.positions {
-            if position.total_return() >= 0.0 {
-                winning_trades.push(position);
-            } else {
-                losing_trades.push(position);
-            }
-        }
-        winning_trades.sort_by(|a, b| b.total_return().partial_cmp(&a.total_return()).unwrap());
-        losing_trades.sort_by(|a, b| a.total_return().partial_cmp(&b.total_return()).unwrap());
-        let wins_sum: f64 = winning_trades.iter().map(|p| p.total_return()).sum();
-        let losses_sum: f64 = losing_trades.iter().map(|p| p.total_return()).sum();
-
-        let win_percent = winning_trades.len() as f64 / self.positions.len() as f64 * 100.0;
-        println!(
-            "W/L/W%: {}/{}/{:.2}% - P/L: ${:.4}/${:.4} - Net: ${:.4}",
-            winning_trades.len(),
-            losing_trades.len(),
-            win_percent,
-            wins_sum,
-            losses_sum,
-            wins_sum + losses_sum,
-        );
-
-        let time = clock::milliseconds_to_date(0);
-        let final_capital = self.broker.unsettled_cash() + self.broker.capital(time);
-        println!("Ending Capital: ${:.4}", final_capital);
+    pub fn final_capital(&mut self, time: clock::LocalDateTime) -> f64 {
+        self.broker.unsettled_cash() + self.broker.capital(time)
     }
 }
 

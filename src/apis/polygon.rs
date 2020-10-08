@@ -21,21 +21,25 @@ impl<'a> Client<'a> {
         end_date: clock::DateWithoutTZ,
         frequency: String,
         frequency_type: String,
-    ) -> Vec<Candle> {
+    ) -> Option<Vec<Candle>> {
         let url = format!(
             "{}/aggs/ticker/{}/range/{}/{}/{}/{}",
             self.base_url, ticker, frequency, frequency_type, start_date, end_date
         );
         let params = vec![("apiKey", self.api_key)];
         let res = super::get(&url, String::new(), &params);
+        let response_status = res.status_text().to_string();
         let json = res.into_json().unwrap();
 
-        json["results"]
-            .as_array()
-            .expect("candles JSON error")
-            .iter()
-            .map(format_candle)
-            .collect()
+        if let Some(results) = json["results"].as_array() {
+            Some(results.iter().map(format_candle).collect())
+        } else {
+            eprintln!(
+                "\nPolygon.price_history response error: {:?}",
+                response_status
+            );
+            None
+        }
     }
 }
 

@@ -15,7 +15,7 @@ pub struct SmaCrossover<'a> {
 impl<'a> SmaCrossover<'a> {
     pub fn new(ticker: &'a String, candles: &[Candle]) -> Self {
         // init studies
-        let mut sma9 = studies::SMA::new(9);
+        let mut sma9 = studies::SMA::new(15);
         for candle in candles {
             sma9.add(candle.close);
         }
