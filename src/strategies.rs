@@ -55,6 +55,8 @@ impl<'a> SmaCrossover<'a> {
             } else if self.setup_found(candle) && !account.is_current_position_open() {
                 self.setup = true;
             }
+
+            account.close_position_for_day(self.ticker, candle);
         }
     }
 }

@@ -163,6 +163,17 @@ impl Account {
         }
     }
 
+    pub fn close_position_for_day(&mut self, ticker: &String, candle: &Candle) {
+        let close_time = clock::Time::from_hms(15, 55, 0);
+        if self.is_current_position_open() && candle.datetime.time() >= close_time {
+            println!(
+                "closing position for day {}",
+                self.current_position().unwrap()
+            );
+            self.close_position(ticker, candle.close, candle.datetime);
+        }
+    }
+
     pub fn log_results(&mut self) {
         for p in &self.positions {
             if p.open {
@@ -272,12 +283,11 @@ fn parse_frequency(code: &str) -> (String, String) {
 
 #[cfg(test)]
 mod tests {
-    use super::{clock, Account, Broker, Position};
+    use super::{apis::candles::Candle, clock, Account, Broker, Position};
 
     #[test]
     fn max_shares_returns_whole_number_of_purchaseable_shares_for_price() {
-        let broker = Broker::new();
-        let mut acct = Account::new(broker);
+        let mut acct = Account::new(Broker::new());
         assert_eq!(
             acct.max_shares(12.31, clock::datetime(2020, 9, 29, 9, 30, 0)),
             81
@@ -287,8 +297,7 @@ mod tests {
     #[test]
     fn cannot_open_position_without_shares() {
         let ticker = "ABC".to_string();
-        let broker = Broker::new();
-        let mut acct = Account::new(broker);
+        let mut acct = Account::new(Broker::new());
         acct.open_position(&ticker, 10.00, 0, clock::datetime(2020, 9, 29, 9, 30, 0));
         assert_eq!(acct.positions.len(), 0);
     }
@@ -309,8 +318,7 @@ mod tests {
     #[test]
     fn cannot_open_position_outside_of_market_hours() {
         let ticker = "ABC".to_string();
-        let broker = Broker::new();
-        let mut acct = Account::new(broker);
+        let mut acct = Account::new(Broker::new());
         acct.open_position(&ticker, 10.00, 1, clock::datetime(2020, 9, 29, 9, 29, 59));
         assert_eq!(acct.positions.len(), 0);
     }
@@ -319,8 +327,7 @@ mod tests {
     fn close_position_puts_return_into_unsettled_cash_minus_commission() {
         let date = clock::datetime(2020, 9, 29, 9, 30, 0);
         let ticker = "ABC".to_string();
-        let broker = Broker::new();
-        let mut acct = Account::new(broker);
+        let mut acct = Account::new(Broker::new());
         acct.open_position(&ticker, 10.00, 5, date);
         acct.close_position(&ticker, 11.00, clock::datetime(2020, 9, 29, 9, 31, 0));
         assert_eq!(acct.broker.unsettled_cash(), 54.99);
@@ -376,8 +383,7 @@ mod tests {
     #[test]
     fn closing_position_on_friday_puts_settle_date_on_monday() {
         let ticker = "ABC".to_string();
-        let broker = Broker::new();
-        let mut acct = Account::new(broker);
+        let mut acct = Account::new(Broker::new());
         let close_time = clock::datetime(2020, 9, 25, 10, 0, 1);
 
         acct.open_position(&ticker, 100.00, 10, clock::datetime(2020, 9, 25, 10, 0, 0));
@@ -391,8 +397,7 @@ mod tests {
     #[test]
     fn closing_position_on_thursday_puts_settle_date_on_monday() {
         let ticker = "ABC".to_string();
-        let broker = Broker::new();
-        let mut acct = Account::new(broker);
+        let mut acct = Account::new(Broker::new());
         let close_time = clock::datetime(2020, 9, 24, 10, 0, 1);
 
         acct.open_position(&ticker, 100.00, 10, clock::datetime(2020, 9, 24, 10, 0, 0));
@@ -402,5 +407,17 @@ mod tests {
         assert_eq!(acct.broker.capital(close_time + clock::days(2)), 0.0);
         assert_eq!(acct.broker.capital(close_time + clock::days(3)), 0.0);
         assert_eq!(acct.broker.capital(close_time + clock::days(4)), 999.99);
+    }
+
+    #[test]
+    fn account_will_close_open_position_within_five_minutes_of_market_close() {
+        let ticker = "ABC".to_string();
+        let mut acct = Account::new(Broker::new());
+        let candle_time = clock::datetime(2020, 9, 24, 15, 55, 00);
+        let candle = Candle::new(0.0, 101.0, 0.0, 0.0, 0, candle_time);
+
+        acct.open_position(&ticker, 100.00, 10, clock::datetime(2020, 9, 24, 10, 0, 0));
+        acct.close_position_for_day(&ticker, &candle);
+        assert_eq!(acct.positions[0].open, false);
     }
 }
