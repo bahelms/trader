@@ -155,7 +155,7 @@ impl Account {
         self.positions.push(position);
     }
 
-    pub fn is_current_position_open(&self) -> bool {
+    pub fn is_position_open(&self) -> bool {
         if let Some(position) = self.current_position() {
             position.open
         } else {
@@ -165,22 +165,12 @@ impl Account {
 
     pub fn close_position_for_day(&mut self, ticker: &String, candle: &Candle) {
         let close_time = clock::Time::from_hms(15, 55, 0);
-        if self.is_current_position_open() && candle.datetime.time() >= close_time {
-            println!(
-                "closing position for day {}",
-                self.current_position().unwrap()
-            );
+        if self.is_position_open() && candle.datetime.time() >= close_time {
             self.close_position(ticker, candle.close, candle.datetime);
         }
     }
 
     pub fn log_results(&mut self) {
-        for p in &self.positions {
-            if p.open {
-                println!("open position {}", p.time);
-            }
-        }
-
         let mut winning_trades = Vec::new();
         let mut losing_trades = Vec::new();
         for position in &self.positions {
@@ -192,18 +182,18 @@ impl Account {
         }
         winning_trades.sort_by(|a, b| b.total_return().partial_cmp(&a.total_return()).unwrap());
         losing_trades.sort_by(|a, b| a.total_return().partial_cmp(&b.total_return()).unwrap());
-        let total_wins: f64 = winning_trades.iter().map(|p| p.total_return()).sum();
-        let total_losses: f64 = losing_trades.iter().map(|p| p.total_return()).sum();
+        let wins_sum: f64 = winning_trades.iter().map(|p| p.total_return()).sum();
+        let losses_sum: f64 = losing_trades.iter().map(|p| p.total_return()).sum();
 
         let win_percent = winning_trades.len() as f64 / self.positions.len() as f64 * 100.0;
         println!(
-            "W/L: {}/{} ${:.4}/${:.4} - Win: {:.2}% - Net: ${:.4}",
+            "W/L/W%: {}/{}/{:.2}% - P/L: ${:.4}/${:.4} - Net: ${:.4}",
             winning_trades.len(),
             losing_trades.len(),
-            total_wins,
-            total_losses,
             win_percent,
-            total_wins + total_losses,
+            wins_sum,
+            losses_sum,
+            wins_sum + losses_sum,
         );
 
         let time = clock::milliseconds_to_date(0);

@@ -50,9 +50,9 @@ impl<'a> SmaCrossover<'a> {
                 let shares = account.max_shares(candle.close, candle.datetime);
                 account.open_position(self.ticker, candle.close, shares, candle.datetime);
                 self.setup = false;
-            } else if self.exit_signal(candle) && account.is_current_position_open() {
+            } else if self.exit_signal(candle) && account.is_position_open() {
                 account.close_position(self.ticker, candle.close, candle.datetime);
-            } else if self.setup_found(candle) && !account.is_current_position_open() {
+            } else if self.setup_found(candle) && !account.is_position_open() {
                 self.setup = true;
             }
 
