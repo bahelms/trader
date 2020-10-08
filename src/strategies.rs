@@ -1,6 +1,6 @@
 use super::{
     studies,
-    trading::{Account, PriceData},
+    trading::{Account, Broker, PriceData},
 };
 use crate::apis::candles::Candle;
 
@@ -42,7 +42,7 @@ impl<'a> SmaCrossover<'a> {
         candle.close < sma9_value
     }
 
-    pub fn execute(&mut self, price_data: &mut PriceData, account: &mut Account) {
+    pub fn execute<B: Broker>(&mut self, price_data: &mut PriceData, account: &mut Account<B>) {
         while let Some(candle) = price_data.next_candle() {
             self.sma9.add(candle.close);
 

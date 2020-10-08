@@ -36,13 +36,27 @@ impl<'a> PriceData<'a> {
     }
 }
 
-pub struct Broker {
+pub trait Broker {
+    fn capital(&mut self, time: clock::LocalDateTime) -> f64;
+    fn unsettled_cash(&self) -> f64;
+    fn is_market_open(&self, datetime: clock::LocalDateTime) -> bool;
+    fn sell_order(&mut self, _ticker: &String, shares: i32, price: f64, time: clock::LocalDateTime);
+    fn buy_order(
+        &mut self,
+        _ticker: &String,
+        shares: i32,
+        price: f64,
+        _time: clock::LocalDateTime,
+    ) -> Option<f64>;
+}
+
+pub struct SimBroker {
     capital: f64,
     unsettled_cash: f64,
     settle_date: Option<clock::LocalDate>,
 }
 
-impl Broker {
+impl SimBroker {
     pub fn new() -> Self {
         Self {
             capital: 1000.0,
@@ -50,7 +64,9 @@ impl Broker {
             settle_date: None,
         }
     }
+}
 
+impl Broker for SimBroker {
     fn capital(&mut self, time: clock::LocalDateTime) -> f64 {
         if let Some(settle_date) = self.settle_date {
             if time.date() >= settle_date {
@@ -109,13 +125,16 @@ impl Broker {
     }
 }
 
-pub struct Account {
+pub struct Account<B> {
     pub positions: Vec<Position>,
-    broker: Broker,
+    broker: B,
 }
 
-impl Account {
-    pub fn new(broker: Broker) -> Self {
+impl<B> Account<B>
+where
+    B: Broker,
+{
+    pub fn new(broker: B) -> Self {
         Self {
             broker,
             positions: Vec::new(),
@@ -273,11 +292,11 @@ fn parse_frequency(code: &str) -> (String, String) {
 
 #[cfg(test)]
 mod tests {
-    use super::{apis::candles::Candle, clock, Account, Broker, Position};
+    use super::{apis::candles::Candle, clock, Account, Broker, Position, SimBroker};
 
     #[test]
     fn max_shares_returns_whole_number_of_purchaseable_shares_for_price() {
-        let mut acct = Account::new(Broker::new());
+        let mut acct = Account::new(SimBroker::new());
         assert_eq!(
             acct.max_shares(12.31, clock::datetime(2020, 9, 29, 9, 30, 0)),
             81
@@ -287,7 +306,7 @@ mod tests {
     #[test]
     fn cannot_open_position_without_shares() {
         let ticker = "ABC".to_string();
-        let mut acct = Account::new(Broker::new());
+        let mut acct = Account::new(SimBroker::new());
         acct.open_position(&ticker, 10.00, 0, clock::datetime(2020, 9, 29, 9, 30, 0));
         assert_eq!(acct.positions.len(), 0);
     }
@@ -295,7 +314,7 @@ mod tests {
     #[test]
     fn cannot_open_position_without_enough_capital() {
         let ticker = "ABC".to_string();
-        let broker = Broker {
+        let broker = SimBroker {
             capital: 5.99,
             unsettled_cash: 0.0,
             settle_date: None,
@@ -308,7 +327,7 @@ mod tests {
     #[test]
     fn cannot_open_position_outside_of_market_hours() {
         let ticker = "ABC".to_string();
-        let mut acct = Account::new(Broker::new());
+        let mut acct = Account::new(SimBroker::new());
         acct.open_position(&ticker, 10.00, 1, clock::datetime(2020, 9, 29, 9, 29, 59));
         assert_eq!(acct.positions.len(), 0);
     }
@@ -317,7 +336,7 @@ mod tests {
     fn close_position_puts_return_into_unsettled_cash_minus_commission() {
         let date = clock::datetime(2020, 9, 29, 9, 30, 0);
         let ticker = "ABC".to_string();
-        let mut acct = Account::new(Broker::new());
+        let mut acct = Account::new(SimBroker::new());
         acct.open_position(&ticker, 10.00, 5, date);
         acct.close_position(&ticker, 11.00, clock::datetime(2020, 9, 29, 9, 31, 0));
         assert_eq!(acct.broker.unsettled_cash(), 54.99);
@@ -337,35 +356,35 @@ mod tests {
 
     #[test]
     fn market_hours() {
-        let broker = Broker::new();
+        let broker = SimBroker::new();
         let time = clock::datetime(2020, 9, 29, 9, 30, 00);
         assert_eq!(broker.is_market_open(time), true);
     }
 
     #[test]
     fn pre_market_hours() {
-        let broker = Broker::new();
+        let broker = SimBroker::new();
         let time = clock::datetime(2020, 9, 29, 9, 29, 59);
         assert_eq!(broker.is_market_open(time), false);
     }
 
     #[test]
     fn post_market_hours() {
-        let broker = Broker::new();
+        let broker = SimBroker::new();
         let time = clock::datetime(2020, 9, 29, 16, 0, 0);
         assert_eq!(broker.is_market_open(time), false);
     }
 
     #[test]
     fn saturday_is_outside_market_hours() {
-        let broker = Broker::new();
+        let broker = SimBroker::new();
         let time = clock::datetime(2020, 9, 26, 10, 0, 0);
         assert_eq!(broker.is_market_open(time), false);
     }
 
     #[test]
     fn sunday_is_outside_market_hours() {
-        let broker = Broker::new();
+        let broker = SimBroker::new();
         let time = clock::datetime(2020, 9, 27, 10, 0, 0);
         assert_eq!(broker.is_market_open(time), false);
     }
@@ -373,7 +392,7 @@ mod tests {
     #[test]
     fn closing_position_on_friday_puts_settle_date_on_monday() {
         let ticker = "ABC".to_string();
-        let mut acct = Account::new(Broker::new());
+        let mut acct = Account::new(SimBroker::new());
         let close_time = clock::datetime(2020, 9, 25, 10, 0, 1);
 
         acct.open_position(&ticker, 100.00, 10, clock::datetime(2020, 9, 25, 10, 0, 0));
@@ -387,7 +406,7 @@ mod tests {
     #[test]
     fn closing_position_on_thursday_puts_settle_date_on_monday() {
         let ticker = "ABC".to_string();
-        let mut acct = Account::new(Broker::new());
+        let mut acct = Account::new(SimBroker::new());
         let close_time = clock::datetime(2020, 9, 24, 10, 0, 1);
 
         acct.open_position(&ticker, 100.00, 10, clock::datetime(2020, 9, 24, 10, 0, 0));
@@ -402,7 +421,7 @@ mod tests {
     #[test]
     fn account_will_close_open_position_within_five_minutes_of_market_close() {
         let ticker = "ABC".to_string();
-        let mut acct = Account::new(Broker::new());
+        let mut acct = Account::new(SimBroker::new());
         let candle_time = clock::datetime(2020, 9, 24, 15, 55, 00);
         let candle = Candle::new(0.0, 101.0, 0.0, 0.0, 0, candle_time);
 
