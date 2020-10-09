@@ -46,6 +46,7 @@ impl Broker for BacktestBroker {
 }
 
 pub fn run_backtest(tickers: &[String], env: &config::Env) {
+    println!("Backtesting");
     for ticker in tickers {
         let mut account = Account::new(BacktestBroker { capital: 1000.0 });
         let mut price_data = PriceData::new(polygon::client(&env));
@@ -61,7 +62,6 @@ pub fn run_backtest(tickers: &[String], env: &config::Env) {
 }
 
 fn log_results(ticker: &String, account: Account<BacktestBroker>) {
-    println!("\nBacktesting {}", ticker);
     let mut winning_trades = Vec::new();
     let mut losing_trades = Vec::new();
     for position in &account.positions {
@@ -78,7 +78,8 @@ fn log_results(ticker: &String, account: Account<BacktestBroker>) {
 
     let win_percent = winning_trades.len() as f64 / account.positions.len() as f64 * 100.0;
     println!(
-        "W/L/W%: {}/{}/{:.2}% - P/L: ${:.4}/${:.4} - Net: ${:.4}",
+        "{:6}-- W/L/W%: {}/{}/{:.2}% - P/L: ${:.4}/${:.4} - Net: ${:.4}",
+        ticker,
         winning_trades.len(),
         losing_trades.len(),
         win_percent,

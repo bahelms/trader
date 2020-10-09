@@ -82,7 +82,7 @@ impl Broker for SimBroker {
 }
 
 pub fn run_simulation(tickers: &[String], env: &config::Env) {
-    println!("Only running simulation for first ticker {:?}", tickers[0]);
+    println!("Running simulation for {}", tickers[0]);
     let broker = SimBroker::new();
     let mut account: Account<SimBroker> = Account::new(broker);
     let mut price_data = PriceData::new(polygon::client(&env));
@@ -108,8 +108,11 @@ fn log_results(mut account: Account<SimBroker>) {
     losing_trades.sort_by(|a, b| a.total_return().partial_cmp(&b.total_return()).unwrap());
     let wins_sum: f64 = winning_trades.iter().map(|p| p.total_return()).sum();
     let losses_sum: f64 = losing_trades.iter().map(|p| p.total_return()).sum();
-
     let win_percent = winning_trades.len() as f64 / account.positions.len() as f64 * 100.0;
+
+    for position in &account.positions {
+        println!("{}", position);
+    }
     println!(
         "W/L/W%: {}/{}/{:.2}% - P/L: ${:.4}/${:.4} - Net: ${:.4}",
         winning_trades.len(),

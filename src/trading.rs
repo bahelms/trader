@@ -166,7 +166,7 @@ impl<'a> fmt::Display for Position<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
-            "{}: {} @ {} - {} - Closed {:?} -- return ${:.2}",
+            "{}: {} @ ${:<9} - {} - Closed {:?} -- return ${:.2}",
             self.ticker,
             self.shares,
             self.bid,
