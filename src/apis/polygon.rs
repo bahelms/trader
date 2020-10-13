@@ -33,7 +33,7 @@ impl<'a> Client<'a> {
         if let Ok(entries) = fs::read_dir(cache_path()) {
             for entry in entries {
                 let entry_path = entry.unwrap().path();
-                let timestamp = entry_path.metadata().unwrap().created().unwrap();
+                let timestamp = entry_path.metadata().unwrap().modified().unwrap();
                 let dur = timestamp
                     .duration_since(SystemTime::UNIX_EPOCH)
                     .unwrap()
