@@ -19,7 +19,12 @@ fn main() {
     let env = config::init_env();
     match args[1].as_str() {
         "--BACKTEST" => {
-            backtest::run_backtest(&args[2..], &env);
+            println!("Backtesting");
+            if args[2] == "-V" {
+                backtest::run_backtest(&args[3..], &env, true);
+            } else {
+                backtest::run_backtest(&args[2..], &env, false);
+            }
         }
         "--SIM" => {
             simulation::run_simulation(&args[2..], &env);

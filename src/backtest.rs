@@ -45,8 +45,7 @@ impl Broker for BacktestBroker {
     }
 }
 
-pub fn run_backtest(tickers: &[String], env: &config::Env) {
-    println!("Backtesting");
+pub fn run_backtest(tickers: &[String], env: &config::Env, verbose: bool) {
     for ticker in tickers {
         let mut account = Account::new(BacktestBroker { capital: 1000.0 });
         let mut price_data = PriceData::new(polygon::client(&env));
@@ -54,14 +53,14 @@ pub fn run_backtest(tickers: &[String], env: &config::Env) {
         if let Some(candles) = price_data.history(ticker, 15, "1:minute") {
             let mut strategy = strategies::SmaCrossover::new(ticker, candles);
             strategy.execute(&mut price_data, &mut account);
-            log_results(ticker, account);
+            log_results(ticker, account, verbose);
         } else {
             break;
         }
     }
 }
 
-fn log_results(ticker: &String, account: Account<BacktestBroker>) {
+fn log_results(ticker: &String, account: Account<BacktestBroker>, verbose: bool) {
     let mut winning_trades = Vec::new();
     let mut losing_trades = Vec::new();
     for position in &account.positions {
@@ -75,10 +74,16 @@ fn log_results(ticker: &String, account: Account<BacktestBroker>) {
     losing_trades.sort_by(|a, b| a.total_return().partial_cmp(&b.total_return()).unwrap());
     let wins_sum: f64 = winning_trades.iter().map(|p| p.total_return()).sum();
     let losses_sum: f64 = losing_trades.iter().map(|p| p.total_return()).sum();
-
     let win_percent = winning_trades.len() as f64 / account.positions.len() as f64 * 100.0;
+
+    if verbose {
+        for position in &account.positions {
+            println!("Position {}", position);
+        }
+    }
+
     println!(
-        "{:6}-- W/L/W%: {}/{}/{:.2}% - P/L: ${:.4}/${:.4} - Net: ${:.4}",
+        "{:6}-- W/L/W%: {}/{}/{:.2}% - P/L: ${:.4}/${:.4} - Net: ${:.4}\n",
         ticker,
         winning_trades.len(),
         losing_trades.len(),

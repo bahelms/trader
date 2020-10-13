@@ -1,4 +1,5 @@
 use super::{apis, apis::candles::Candle, clock};
+use colored::*;
 use std::fmt;
 
 pub struct PriceData<'a> {
@@ -164,15 +165,16 @@ impl<'a> Position<'a> {
 
 impl<'a> fmt::Display for Position<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let total_return = if self.total_return() < 0.0 {
+            format!("${:.2}", self.total_return()).red()
+        } else {
+            format!("${:.2}", self.total_return()).green()
+        };
+
         write!(
             f,
-            "{}: {} @ ${:<9} - {} - Closed {:?} -- return ${:.2}",
-            self.ticker,
-            self.shares,
-            self.bid,
-            self.time,
-            self.closes,
-            self.total_return()
+            "{}: {} @ ${:<9} - {} - Closed {:?} -- return {}",
+            self.ticker, self.shares, self.bid, self.time, self.closes, total_return
         )
     }
 }
