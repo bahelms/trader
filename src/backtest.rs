@@ -1,5 +1,5 @@
 use super::{
-    apis::polygon,
+    apis::alpha_vantage,
     clock, config, strategies,
     trading::{Account, Broker, PriceData},
 };
@@ -48,10 +48,11 @@ impl Broker for BacktestBroker {
 pub fn run_backtest(tickers: &[String], env: &config::Env, verbose: bool) {
     for ticker in tickers {
         let mut account = Account::new(BacktestBroker { capital: 1000.0 });
-        let mut price_data = PriceData::new(polygon::client(&env));
+        let mut price_data = PriceData::new(alpha_vantage::client(&env));
 
-        if let Some(candles) = price_data.history(ticker, 15, "1:minute") {
+        if let Some(candles) = price_data.history(ticker, 180, "1:minute") {
             let mut strategy = strategies::SmaCrossover::new(ticker, candles);
+            // let mut strategy = strategies::Sma9CrossesSma180::new(ticker, candles);
             strategy.execute(&mut price_data, &mut account);
             log_results(ticker, account, verbose);
         } else {

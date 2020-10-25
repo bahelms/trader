@@ -16,6 +16,14 @@ pub fn milliseconds_to_date(ms: i64) -> LocalDateTime {
     Local.from_local_datetime(&naive_datetime).single().unwrap()
 }
 
+pub fn parse_datetime(datetime: &str) -> LocalDateTime {
+    let naive_dt = NaiveDateTime::parse_from_str(datetime, "%Y-%m-%d %H:%M:%S");
+    Local
+        .from_local_datetime(&naive_dt.unwrap())
+        .single()
+        .unwrap()
+}
+
 pub fn days_ago(days: i64) -> DateWithoutTZ {
     current_date() - self::days(days)
 }

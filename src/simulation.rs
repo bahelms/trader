@@ -1,5 +1,5 @@
 use super::{
-    apis::polygon,
+    apis::alpha_vantage,
     clock, config, strategies,
     trading::{Account, Broker, PriceData},
 };
@@ -85,7 +85,7 @@ pub fn run_simulation(tickers: &[String], env: &config::Env) {
     println!("Running simulation for {}", tickers[0]);
     let broker = SimBroker::new();
     let mut account: Account<SimBroker> = Account::new(broker);
-    let mut price_data = PriceData::new(polygon::client(&env));
+    let mut price_data = PriceData::new(alpha_vantage::client(&env));
 
     if let Some(candles) = price_data.history(&tickers[0], 9, "1:minute") {
         let mut strategy = strategies::SmaCrossover::new(&tickers[0], candles);

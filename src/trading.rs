@@ -3,13 +3,13 @@ use colored::*;
 use std::fmt;
 
 pub struct PriceData<'a> {
-    client: apis::polygon::Client<'a>,
+    client: apis::alpha_vantage::Client<'a>,
     candles: Vec<Candle>,
     current_index: usize,
 }
 
 impl<'a> PriceData<'a> {
-    pub fn new(client: apis::polygon::Client<'a>) -> Self {
+    pub fn new(client: apis::alpha_vantage::Client<'a>) -> Self {
         Self {
             client,
             candles: Vec::new(),
@@ -19,7 +19,7 @@ impl<'a> PriceData<'a> {
 
     pub fn history(&mut self, ticker: &String, bars: usize, frequency: &str) -> Option<&[Candle]> {
         let (frequency, frequency_type) = parse_frequency(frequency);
-        let start_date = clock::days_ago(60);
+        let start_date = clock::days_ago(70);
         let end_date = clock::current_date();
         let history =
             self.client

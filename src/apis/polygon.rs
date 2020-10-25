@@ -5,7 +5,6 @@ use serde_json::{json, value::Value};
 use std::{
     fs,
     io::{BufReader, Write},
-    path::PathBuf,
     time::SystemTime,
 };
 
@@ -30,7 +29,7 @@ impl<'a> Client<'a> {
         frequency: String,
         frequency_type: String,
     ) -> Option<Vec<Candle>> {
-        if let Ok(entries) = fs::read_dir(cache_path()) {
+        if let Ok(entries) = fs::read_dir(super::cache_path()) {
             for entry in entries {
                 let entry_path = entry.unwrap().path();
                 let timestamp = entry_path.metadata().unwrap().modified().unwrap();
@@ -79,14 +78,8 @@ struct CandleHolder {
     candles: Vec<Value>,
 }
 
-fn cache_path() -> PathBuf {
-    let mut cache_path = PathBuf::new();
-    cache_path.push("backtest_cache");
-    cache_path
-}
-
 fn cache_results(ticker: &str, results: &Vec<serde_json::value::Value>) {
-    let mut path = cache_path();
+    let mut path = super::cache_path();
     if !path.is_dir() {
         fs::create_dir(&path).expect("Error creating cache directory!");
     }
